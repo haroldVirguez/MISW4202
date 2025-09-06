@@ -1,11 +1,21 @@
-from flask import Flask, jsonify
-from flask_cors import CORS
-import redis
+import sys
 import os
+
+# Agregar el directorio raíz al PYTHONPATH
+sys.path.insert(0, '/app')
+
+from flask import jsonify
+import redis
 from datetime import datetime
 
-app = Flask(__name__)
-CORS(app)
+# Importar configuración compartida
+from shared import create_app, add_health_check, setup_cors
+
+# Crear la aplicación usando la configuración compartida
+app = create_app(service_name='monitor')
+
+# Configurar CORS
+setup_cors(app)
 
 # Configuración de Redis
 redis_client = redis.Redis(
@@ -14,6 +24,7 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
+# Agregar health check personalizado con timestamp
 @app.route('/health', methods=['GET'])
 def health_check():
     """Endpoint de verificación de salud del servicio monitor"""

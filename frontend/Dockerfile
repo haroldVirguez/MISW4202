@@ -1,5 +1,5 @@
 # Usar imagen de Node.js para construir la aplicación
-FROM node:18-alpine AS builder
+FROM node:20.19-alpine AS builder
 
 WORKDIR /app
 

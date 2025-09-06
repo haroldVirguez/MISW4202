@@ -13,17 +13,15 @@ COPY requirements.txt .
 # Instalar dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código de la aplicación
+# Copiar todo el código de la aplicación
 COPY . .
 
 # Crear directorio para la base de datos
 RUN mkdir -p /data
 
-# Exponer puerto
-EXPOSE 5001
+# Hacer los entry points ejecutables
+RUN chmod +x entrypoint_*.py
 
-# Variable de entorno para identificar el servicio monitor
-ENV SERVICE_TYPE=monitor
-
-# Comando por defecto para el servicio monitor
-CMD ["python", "monitor_service.py"]
+# El comando será definido en docker-compose para cada servicio
+# Por defecto, mostrar mensaje de ayuda
+CMD ["echo", "Use docker-compose to run specific microservices"]

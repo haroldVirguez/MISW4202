@@ -4,7 +4,9 @@ from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import jwt_required, create_access_token
 from datetime import datetime
-from ..app import celery
+
+# Importar celery desde la configuración global
+from celery_config import celery
 
 entrega_schema = EntregaSchema()
 usuario_schema = UsuarioSchema()
