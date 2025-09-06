@@ -17,8 +17,8 @@ from .vistas import VistaEntregas, VistaEntrega, VistaSignIn, VistaLogIn, VistaT
 # Crear la aplicación usando la configuración compartida
 app = create_app(service_name='logistica_inventario')
 
-# Configurar CORS
-setup_cors(app)
+# Configurar CORS - DESACTIVADO porque el API Gateway maneja CORS
+# setup_cors(app)
 
 # Inicializar base de datos
 with app.app_context():

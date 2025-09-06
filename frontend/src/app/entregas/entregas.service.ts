@@ -7,12 +7,12 @@ import { Entrega } from './entrega';
   providedIn: 'root',
 })
 export class EntregasService {
-  private apiUrl = 'http://localhost:5002';
+  private apiUrl = 'http://localhost:8080/api/v1/logistica';
 
   constructor(private http: HttpClient) {}
 
   getEntregas(): Observable<Entrega[]> {
-    return this.http.get<Entrega[]>('http://localhost:5000/entregas');
+    return this.http.get<Entrega[]>(`${this.apiUrl}/entregas`);
   }
 
   procesarEntrega(entregaId: number): Observable<any> {

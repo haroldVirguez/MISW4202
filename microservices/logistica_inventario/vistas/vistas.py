@@ -4,6 +4,7 @@ from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import jwt_required, create_access_token
 from datetime import datetime
+import random
 
 # Importar celery desde la configuración global
 entrega_schema = EntregaSchema()
@@ -106,12 +107,23 @@ class VistaTareas(Resource):
             if not entrega_id:
                 return {"error": "entrega_id es requerido"}, 400
             
-            task_result = LogisticaTasks.procesar_entrega(entrega_id)
-            
-            return {
-                "message": "Tarea enviada via dispatcher limpio",
-                **task_result
-            }, 202
+            try:
+                if random.random() < 0.5:
+                    raise Exception("Sistema temporalmente no disponible")
+                
+                task_result = LogisticaTasks.procesar_entrega(entrega_id)
+                
+                return {
+                    "message": "Tarea enviada",
+                    "entrega_id": entrega_id,
+                    "estado": "exitoso",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    **task_result
+                }, 200
+                
+            except Exception as e:
+                task_result = LogisticaTasks.procesar_entrega(entrega_id)
+                raise e
             
         elif tipo_tarea == "validar_inventario":
             producto_id = data.get("producto_id")
