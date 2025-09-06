@@ -1,4 +1,16 @@
 <h1>Entregas</h1>
+<div class="mb-3">
+  <button 
+    class="btn btn-primary" 
+    (click)="procesarPedido()"
+    [disabled]="procesando">
+    {{ procesando ? 'Procesando...' : 'Procesar Pedido' }}
+  </button>
+  <div *ngIf="mensaje" class="alert alert-info mt-2">
+    {{ mensaje }}
+  </div>
+</div>
+
 <table class ="table" *ngIf="entregas$ | async as entregas; else loading">
   <thead>
     <tr>
