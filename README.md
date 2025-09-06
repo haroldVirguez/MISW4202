@@ -4,37 +4,47 @@ Este proyecto incluye una arquitectura de microservicios con Flask, Angular, Red
 
 ## Arquitectura
 
-La aplicación está dividida en microservicios independientes que comparten la misma imagen base pero tienen diferentes entry points:
+La aplicación está dividida en microservicios independientes con una arquitectura Celery completamente desacoplada:
 
 - **Frontend**: Aplicación Angular servida con Nginx
-- **Microservicio Logística/Inventario**: API Flask en puerto 5000 (`microservices/logistica_inventario/`)
+- **Microservicio Logística/Inventario**: API Flask en puerto 5002 (`microservices/logistica_inventario/`)
 - **Microservicio Monitor**: Servicio de monitoreo en puerto 5001 (`microservices/monitor/`)
 - **Redis**: Broker de mensajería para Celery
-- **Celery Worker**: Procesador de tareas asíncronas
+- **Celery Worker**: Procesador de tareas asíncronas (instancia separada)
 - **Celery Flower**: Monitor web de Celery en puerto 5555
 - **SQLite**: Base de datos como volumen compartido
+
+### Arquitectura de Tareas Asíncronas
+
+- **Worker Celery**: `celery_worker.py` - Auto-discovery y ejecución de tareas
+- **Client Celery**: `celery_client.py` - Dispatch desde microservicios Flask
+- **Task Registry**: `task_registry.py` - Metadata sin acoplamiento de código
+- **Task Dispatcher**: `task_dispatcher.py` - Interface limpia para envío
 
 ## Estructura del Proyecto
 
 ```
 MISW4202/
-├── shared/                      # Configuración compartida y reutilizable
-│   ├── __init__.py             # Funciones: create_app, make_celery, etc.
+├── shared/                      # Configuración compartida Flask (sin Celery)
+│   ├── __init__.py             # Funciones: create_app, add_health_check, setup_cors
 │   └── flask_config.py         # Importaciones simplificadas
 ├── microservices/
 │   ├── logistica_inventario/    # Microservicio principal
 │   │   ├── __init__.py         # Exporta app
 │   │   ├── app.py              # Flask app usando shared config
-│   │   ├── tasks.py            # Tareas asíncronas de Celery
+│   │   ├── tasks.py            # Tareas asíncronas registradas con worker_celery
 │   │   ├── modelos/
 │   │   └── vistas/
 │   └── monitor/                 # Microservicio monitor
 │       ├── __init__.py         # Exporta app
-│       └── monitor_service.py  # Flask app usando shared config
+│       ├── monitor_service.py  # Flask app usando shared config
+│       └── tasks.py            # Tareas de monitoreo
 ├── entrypoint_logistica.py      # Entry point para logística
 ├── entrypoint_monitor.py        # Entry point para monitor
-├── entrypoint_celery.py         # Entry point para celery
-├── celery_config.py             # Configuración de Celery
+├── celery_worker.py             # Worker Celery con auto-discovery
+├── celery_client.py             # Client Celery para dispatch
+├── task_registry.py             # Registry de metadatos de tareas
+├── task_dispatcher.py           # Interface limpia para envío
 ├── frontend/                    # Aplicación Angular
 ├── docker-compose.yml
 ├── Dockerfile                   # Imagen compartida
@@ -75,6 +85,9 @@ docker-compose logs
 # Ver logs de un servicio específico
 docker-compose logs m-logistica-inventario
 
+# Ver logs del worker Celery
+docker-compose logs celery-worker
+
 # Detener todos los servicios
 docker-compose down
 
@@ -83,23 +96,34 @@ docker-compose down -v
 
 # Reconstruir un servicio específico
 docker-compose up --build m-logistica-inventario
+
+# Verificar estado de todas las colas
+docker exec $(docker ps --filter "name=celery-worker" -q) celery -A celery_worker inspect active
 ```
 
-### Endpoints de Monitoreo
+### Endpoints de API
 
-- `GET /health` - Health check de cada servicio
+#### Logística/Inventario (puerto 5002)
+- `GET /health` - Health check
+- `GET /tareas` - Lista de tareas disponibles 
+- `POST /tareas` - Enviar tarea asíncrona
+- `GET /tareas/<task_id>` - Estado de tarea específica
+
+#### Monitor (puerto 5001)
+- `GET /health` - Health check
 - `GET /monitor/status` - Estado general de los servicios
 - `GET /monitor/queue` - Información de las colas de Celery
 - `GET /monitor/workers` - Información de los workers activos
 
-## Microservicios
+## Arquitectura de Microservicios
 
 ### Logística/Inventario (`m-logistica-inventario`)
 
 - **Puerto**: 5002
 - **Entry Point**: `entrypoint_logistica.py`
 - **Comando**: `python entrypoint_logistica.py`
-- **Funcionalidad**: Gestión de entregas, autenticación
+- **Funcionalidad**: Gestión de entregas, autenticación, dispatch de tareas
+- **Tareas**: `logistica.procesar_entrega`, `logistica.validar_inventario`, `logistica.generar_reporte`
 
 ### Monitor (`m-monitor`)
 
@@ -107,18 +131,20 @@ docker-compose up --build m-logistica-inventario
 - **Entry Point**: `entrypoint_monitor.py`
 - **Comando**: `python entrypoint_monitor.py`
 - **Funcionalidad**: Monitoreo de Redis, Celery y estado de servicios
+- **Tareas**: `monitor.health_check`, `monitor.log_activity`, `monitor.generate_metrics`
 
 ### Celery Worker (`celery-worker`)
 
-- **Entry Point**: Comando directo de Celery
-- **Comando**: `celery -A celery_config.celery worker --loglevel=info`
-- **Funcionalidad**: Procesamiento de tareas asíncronas
+- **Entry Point**: Worker Celery separado
+- **Comando**: `celery -A celery_worker.worker_celery worker --loglevel=info -Q celery,logistica,monitor`
+- **Funcionalidad**: Procesamiento de tareas asíncronas con auto-discovery
+- **Colas**: Escucha múltiples colas (celery, logistica, monitor)
 
 ### Celery Flower (`celery-flower`)
 
 - **Puerto**: 5555
-- **Entry Point**: Comando directo de Celery
-- **Comando**: `celery -A celery_config.celery flower --port=5555`
+- **Entry Point**: Monitor Celery
+- **Comando**: `celery -A celery_worker.worker_celery flower --port=5555`
 - **Funcionalidad**: Monitor web de Celery
 
 ## Desarrollo Local (Alternativo)
@@ -131,38 +157,29 @@ Para activar el venv en desarrollo local:
 
 ## Variables de Entorno
 
-Ver `.env.example` para las variables de entorno disponibles.
-
-## Configuración de Microservicios
+## Configuración de Arquitectura
 
 ### **📦 Configuración Compartida (`shared/`)**
 
-El módulo `shared` proporciona funciones reutilizables que cualquier microservicio puede usar:
+El módulo `shared` proporciona funciones reutilizables para Flask (sin Celery):
 
 - **`create_app(service_name, config_overrides)`**: Crea una app Flask configurada
-- **`make_celery(app)`**: Configura Celery con contexto Flask
 - **`add_health_check(app, service_name)`**: Agrega endpoint `/health`
 - **`setup_cors(app, origins)`**: Configura CORS
 
-### **🔧 Cada Microservicio:**
+### **🔧 Arquitectura de Tareas Asíncronas:**
 
-- **Imagen Docker**: Un solo Dockerfile compartido
-- **Configuración**: Usa `shared` para configuración base + configuración específica
-- **Entry Points**: Cada servicio tiene su propio punto de entrada independiente
-- **Base de datos**: SQLite compartida via volumen Docker
-- **Redis**: Broker común para Celery y monitoreo
-
-### **💡 Ventajas de esta Estructura:**
-
-✅ **Reutilizable**: La configuración en `shared/` se puede usar en nuevos microservicios  
-✅ **Mantenible**: Cambios de configuración se hacen en un solo lugar  
-✅ **Flexible**: Cada microservicio puede agregar configuración específica  
-✅ **Separado**: Cada microservicio mantiene su lógica de negocio independiente
+- **`celery_worker.py`**: Worker con auto-discovery de tareas (sin Flask)
+- **`celery_client.py`**: Client para dispatch desde Flask
+- **`task_registry.py`**: Registro de metadatos sin acoplamiento
+- **`task_dispatcher.py`**: Interface limpia para envío de tareas
 
 ### **🚀 Cómo agregar un nuevo microservicio:**
 
 1. **Crear la carpeta**: `microservices/mi_nuevo_servicio/`
+
 2. **Crear el app.py**:
+
    ```python
    from shared import create_app, setup_cors, add_health_check
    
@@ -174,23 +191,48 @@ El módulo `shared` proporciona funciones reutilizables que cualquier microservi
    def mi_endpoint():
        return {'mensaje': 'Hola desde mi nuevo microservicio'}
    ```
+
 3. **Si necesitas tareas asíncronas, crear tasks.py**:
+
    ```python
-   from celery_config import celery
+   from celery_worker import worker_celery
    
-   @celery.task
-   def mi_tarea_asincrona():
-       return "Tarea completada"
+   @worker_celery.task(name='mi_servicio.mi_tarea')
+   def mi_tarea_async(data):
+       # Tu lógica aquí
+       return {'resultado': 'procesado', 'data': data}
    ```
-4. **Crear entry point**: `entrypoint_mi_servicio.py`
-5. **Agregar al docker-compose.yml** con su propio `command:`
-6. **Agregar el microservicio a `celery_config.py`** para auto-descubrir tareas
 
-### **📋 Configuración de Celery Simplificada:**
+4. **Actualizar task_registry.py**:
 
-- **Una sola configuración**: `celery_config.py` usa `shared` para crear la app
-- **Auto-descubrimiento**: Encuentra automáticamente tareas en todos los microservicios
-- **Sin duplicación**: No necesitas crear Celery en cada microservicio
-- **Tareas por microservicio**: Cada uno tiene su propio `tasks.py`
+   ```python
+   TASK_REGISTRY = {
+       # ... tareas existentes
+       'mi_servicio.mi_tarea': {
+           'description': 'Procesa datos del nuevo servicio',
+           'params': ['data'],
+           'queue': 'mi_servicio'
+       }
+   }
+   ```
 
+5. **Crear entry point**: `entrypoint_mi_servicio.py`
 
+6. **Agregar al docker-compose.yml**
+
+7. **Crear entry point**: `entrypoint_mi_servicio.py`
+
+8. **Actualizar celery_worker.py** para auto-discovery:
+
+   ```python
+   # Agregar tu microservicio a la lista
+   worker_celery.autodiscover_tasks([
+       'microservices.logistica_inventario.tasks',
+       'microservices.monitor.tasks',
+       'microservices.mi_nuevo_servicio.tasks',  # ← Nuevo
+   ])
+   ```
+
+## Variables de Entorno
+
+Ver `.env.example` para las variables de entorno disponibles.

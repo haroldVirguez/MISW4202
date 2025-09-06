@@ -8,7 +8,7 @@ from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
 # Importar configuración compartida
-from shared import create_app, make_celery, add_health_check, setup_cors
+from shared import create_app, add_health_check, setup_cors
 
 # Importar modelos y vistas locales
 from .modelos import db

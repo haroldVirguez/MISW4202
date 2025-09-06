@@ -1,10 +1,9 @@
 """
 Configuración compartida para microservicios Flask
-Este módulo proporciona funciones reutilizables para configurar Flask y Celery
+Este módulo proporciona funciones reutilizables para configurar Flask
 """
 
 from flask import Flask
-from celery import Celery
 import os
 
 def create_app(service_name="microservice", config_overrides=None):
@@ -29,13 +28,6 @@ def create_app(service_name="microservice", config_overrides=None):
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'frase-secreta')
     app.config['PROPAGATE_EXCEPTIONS'] = True
     
-    # Configuración de Celery
-    broker_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-    result_backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
-    
-    app.config['CELERY_BROKER_URL'] = broker_url
-    app.config['CELERY_RESULT_BACKEND'] = result_backend
-    
     # Configuración específica del servicio
     app.config['SERVICE_NAME'] = service_name
     
@@ -44,31 +36,6 @@ def create_app(service_name="microservice", config_overrides=None):
         app.config.update(config_overrides)
     
     return app
-
-def make_celery(app):
-    """
-    Crear una instancia de Celery configurada con el contexto de Flask
-    
-    Args:
-        app (Flask): Instancia de Flask
-    
-    Returns:
-        Celery: Instancia configurada de Celery
-    """
-    celery = Celery(
-        app.import_name,
-        backend=app.config['CELERY_RESULT_BACKEND'],
-        broker=app.config['CELERY_BROKER_URL']
-    )
-    celery.conf.update(app.config)
-    
-    class ContextTask(celery.Task):
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-    
-    celery.Task = ContextTask
-    return celery
 
 def add_health_check(app, service_name=None):
     """
