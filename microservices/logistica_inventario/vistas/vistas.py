@@ -6,15 +6,9 @@ from flask_jwt_extended import jwt_required, create_access_token
 from datetime import datetime
 
 # Importar celery desde la configuración global
-from celery_config import celery
-
 entrega_schema = EntregaSchema()
 usuario_schema = UsuarioSchema()
 
-@celery.task(name='registrar_log')
-def registrar_log(usuario, fecha):
-    with open('logs_signin.txt', 'a+') as file:
-        file.write('{} - inicio de sesión: {}\n'.format(usuario, fecha))
 
 
 class VistaEntregas(Resource):
@@ -87,3 +81,123 @@ class VistaSignIn(Resource):
         db.session.delete(usuario)
         db.session.commit()
         return '',204
+
+
+class VistaTareas(Resource):
+    """
+    Endpoints para enviar y consultar tareas asíncronas usando el nuevo dispatcher
+    """
+    
+    def post(self):
+        """
+        Envía una tarea asíncrona usando el dispatcher desacoplado
+        """
+        # Importar el dispatcher limpio
+        from shared.task_dispatcher import LogisticaTasks, MonitorTasks, task_dispatcher
+        
+        data = request.get_json()
+        if not data:
+            return {"error": "Body JSON requerido"}, 400
+        
+        tipo_tarea = data.get("tipo")
+        
+        if tipo_tarea == "procesar_entrega":
+            entrega_id = data.get("entrega_id")
+            if not entrega_id:
+                return {"error": "entrega_id es requerido"}, 400
+            
+            task_result = LogisticaTasks.procesar_entrega(entrega_id)
+            
+            return {
+                "message": "Tarea enviada via dispatcher limpio",
+                **task_result
+            }, 202
+            
+        elif tipo_tarea == "validar_inventario":
+            producto_id = data.get("producto_id")
+            cantidad = data.get("cantidad")
+            
+            if not producto_id or not cantidad:
+                return {"error": "producto_id y cantidad son requeridos"}, 400
+            
+            task_result = LogisticaTasks.validar_inventario(producto_id, cantidad)
+            
+            return {
+                "message": "Validación enviada via dispatcher",
+                **task_result
+            }, 202
+            
+        elif tipo_tarea == "generar_reporte":
+            fecha_inicio = data.get("fecha_inicio")
+            fecha_fin = data.get("fecha_fin")
+            
+            task_result = LogisticaTasks.generar_reporte(fecha_inicio, fecha_fin)
+            
+            return {
+                "message": "Reporte enviado via dispatcher", 
+                **task_result
+            }, 202
+            
+        elif tipo_tarea == "health_check":
+            task_result = MonitorTasks.health_check()
+            
+            return {
+                "message": "Health check iniciado via dispatcher",
+                **task_result
+            }, 202
+            
+        elif tipo_tarea == "log_activity":
+            activity_data = data.get("activity_data", {})
+            
+            task_result = MonitorTasks.log_activity(activity_data)
+            
+            return {
+                "message": "Log activity enviado via dispatcher",
+                **task_result
+            }, 202
+            
+        elif tipo_tarea == "generate_metrics":
+            task_result = MonitorTasks.generate_metrics()
+            
+            return {
+                "message": "Generación de métricas iniciada via dispatcher",
+                **task_result
+            }, 202
+            
+        else:
+            # Lista de tareas disponibles
+            available_tasks = task_dispatcher.list_available_tasks()
+            return {
+                "error": "Tipo de tarea no válido", 
+                "available_tasks": available_tasks,
+                "ejemplos": [
+                    {"tipo": "procesar_entrega", "entrega_id": 123},
+                    {"tipo": "validar_inventario", "producto_id": 456, "cantidad": 10},
+                    {"tipo": "generar_reporte", "fecha_inicio": "2025-01-01", "fecha_fin": "2025-01-31"},
+                    {"tipo": "health_check"},
+                    {"tipo": "log_activity", "activity_data": {"evento": "login", "usuario": "test"}},
+                    {"tipo": "generate_metrics"}
+                ]
+            }, 400
+    
+    def get(self, task_id=None):
+        """
+        Consulta el estado/resultado de una tarea específica
+        """
+        from shared.task_dispatcher import task_dispatcher
+        
+        if task_id:
+            # Obtener resultado de tarea específica
+            task_result = task_dispatcher.get_task_result(task_id)
+            return task_result, 200
+        else:
+            # Listar tareas disponibles
+            available_tasks = task_dispatcher.list_available_tasks()
+            return {
+                "available_tasks": available_tasks,
+                "endpoints": {
+                    "dispatch": "POST /tareas",
+                    "status": "GET /tareas/<task_id>"
+                },
+                "info": "Use POST para enviar tareas, GET con task_id para consultar estado"
+            }, 200
