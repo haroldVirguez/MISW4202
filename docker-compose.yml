@@ -17,8 +17,9 @@ services:
       dockerfile: Dockerfile
     container_name: m-logistica-inventario
     command: python entrypoints/entrypoint_logistica.py
-    ports:
-      - "5002:5002"
+    # Puerto interno - Solo accesible via API Gateway
+    expose:
+      - "5002"
     environment:
       - FLASK_ENV=development
       - FLASK_HOST=0.0.0.0
@@ -42,8 +43,9 @@ services:
       dockerfile: Dockerfile
     container_name: m-monitor
     command: python entrypoints/entrypoint_monitor.py
-    ports:
-      - "5001:5001"
+    # Puerto interno - Solo accesible via API Gateway
+    expose:
+      - "5001"
     environment:
       - FLASK_ENV=development
       - FLASK_HOST=0.0.0.0
@@ -89,7 +91,7 @@ services:
     container_name: celery-flower
     command: celery -A celery_app.worker.worker_celery flower --port=5555
     ports:
-      - "5555:5555"
+      - "5555:5555"  # Flower acceso directo
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -100,19 +102,31 @@ services:
     networks:
       - app-network
 
-  # Frontend Angular
+  # Frontend Angular + API Gateway (nginx)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "4200:80"
+      - "4200:80"  # Frontend - Solo archivos estáticos
+    networks:
+      - app-network
+
+  # API Gateway dedicado
+  api-gateway:
+    build:
+      context: ./api_gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:80"  # API Gateway - Punto único para APIs
     depends_on:
       - m-logistica-inventario
       - m-monitor
     networks:
       - app-network
+    
 
 volumes:
   redis_data:

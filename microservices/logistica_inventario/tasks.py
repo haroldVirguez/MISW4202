@@ -10,15 +10,8 @@ try:
     celery_instance = worker_celery
     print("✓ Usando worker_celery para tareas de logística")
 except ImportError:
-    # Si no está disponible, crear instancia fallback
-    print("⚠️ worker_celery no disponible, creando instancia fallback")
-    from celery import Celery
-    import os
-    celery_instance = Celery(
-        'fallback',
-        broker=os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0'),
-        backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
-    )
+    print("⚠️ worker_celery no disponible")
+    celery_instance = None
 
 def _register_task(func, name):
     """Helper para registrar tareas de forma segura"""
