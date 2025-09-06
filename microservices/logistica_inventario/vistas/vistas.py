@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import jwt_required, create_access_token
 from datetime import datetime
 import random
+from celery_app.dispatcher import LogisticaTasks, MonitorTasks, task_dispatcher
 
 # Importar celery desde la configuración global
 entrega_schema = EntregaSchema()
@@ -55,7 +56,7 @@ class VistaLogIn(Resource):
             u_contrasena = request.json["contrasena"]
             usuario = Usuario.query.filter_by(nombre=u_nombre, contrasena = u_contrasena).all()
             if usuario:
-                registrar_log.apply_async(args=(u_nombre, datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')), queue='logs')
+                
                 token_de_acceso = create_access_token(identity=u_nombre)
                 return {'mensaje':'Inicio de sesión exitoso', 'token': token_de_acceso}, 200
             else:
@@ -94,7 +95,6 @@ class VistaTareas(Resource):
         Envía una tarea asíncrona usando el dispatcher desacoplado
         """
         # Importar el dispatcher limpio
-        from celery_app.dispatcher import LogisticaTasks, MonitorTasks, task_dispatcher
         
         data = request.get_json()
         if not data:
@@ -191,12 +191,20 @@ class VistaTareas(Resource):
                     {"tipo": "generate_metrics"}
                 ]
             }, 400
-    
+        
+    def get(self):
+        tasks= task_dispatcher.listar_task_from_redis()
+        return {"message": "Lista de tareas en Redis", "tasks": [task for task in tasks]}, 200
+
+
+class VistaTareaDetail(Resource):
+    """
+    Endpoint para consultar el estado de una tarea asíncrona por ID
+    """
     def get(self, task_id=None):
         """
         Consulta el estado/resultado de una tarea específica
         """
-        from celery_app.dispatcher import task_dispatcher
         
         if task_id:
             # Obtener resultado de tarea específica
@@ -213,3 +221,4 @@ class VistaTareas(Resource):
                 },
                 "info": "Use POST para enviar tareas, GET con task_id para consultar estado"
             }, 200
+        

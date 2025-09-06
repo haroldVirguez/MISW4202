@@ -8,17 +8,17 @@ from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
 # Importar configuración compartida
-from shared import create_app, add_health_check, setup_cors
+from shared import create_app, add_health_check
+# Removed setup_cors - CORS is handled by nginx API Gateway
 
 # Importar modelos y vistas locales
 from .modelos import db
-from .vistas import VistaEntregas, VistaEntrega, VistaSignIn, VistaLogIn, VistaTareas
+from .vistas import VistaEntregas, VistaEntrega, VistaSignIn, VistaLogIn, VistaTareas, VistaTareaDetail
 
 # Crear la aplicación usando la configuración compartida
 app = create_app(service_name='logistica_inventario')
 
-# Configurar CORS - DESACTIVADO porque el API Gateway maneja CORS
-# setup_cors(app)
+# CORS is handled by nginx API Gateway - no need to setup here
 
 # Inicializar base de datos
 with app.app_context():
@@ -31,7 +31,8 @@ api.add_resource(VistaEntregas, '/entregas')
 api.add_resource(VistaEntrega, '/entrega/<int:id_entrega>')
 api.add_resource(VistaSignIn, '/signin', '/signin/<int:id_usuario>')
 api.add_resource(VistaLogIn, '/login')
-api.add_resource(VistaTareas, '/tareas', '/tareas/<string:task_id>')
+api.add_resource(VistaTareaDetail, '/tarea', '/tareas/<string:task_id>')
+api.add_resource(VistaTareas, '/tareas')
 
 # Configurar JWT
 jwt = JWTManager(app)

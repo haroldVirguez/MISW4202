@@ -9,13 +9,13 @@ import redis
 from datetime import datetime
 
 # Importar configuración compartida
-from shared import create_app, add_health_check, setup_cors
+from shared import create_app, add_health_check
+# Removed setup_cors - CORS is handled by nginx API Gateway
 
 # Crear la aplicación usando la configuración compartida
 app = create_app(service_name='monitor')
 
-# Configurar CORS - DESACTIVADO porque el API Gateway maneja CORS
-# setup_cors(app)
+# CORS is handled by nginx API Gateway - no need to setup here
 
 # Configuración de Redis
 redis_client = redis.Redis(

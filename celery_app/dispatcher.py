@@ -134,6 +134,34 @@ class TaskDispatcher:
     def list_available_tasks(self) -> list:
         """Lista tareas disponibles"""
         return list_available_tasks()
+    
+    def listar_task_from_redis(self) -> list:
+        """Lista tareas activas/pendientes/en proceso en Redis"""
+        if not self.celery:
+            return []
+        
+        i = self.celery.control.inspect()
+        all_active_tasks = []
+        
+        # Obtener tareas activas (en ejecución)
+        active = i.active()
+        if active:
+            for worker, tasks in active.items():
+                all_active_tasks.extend(tasks)
+        
+        # Obtener tareas pendientes (en cola)
+        scheduled = i.scheduled()
+        if scheduled:
+            for worker, tasks in scheduled.items():
+                all_active_tasks.extend(tasks)
+        
+        # Obtener tareas reservadas
+        reserved = i.reserved()
+        if reserved:
+            for worker, tasks in reserved.items():
+                all_active_tasks.extend(tasks)
+        
+        return all_active_tasks
 
 # Instancia global del dispatcher
 task_dispatcher = TaskDispatcher()
