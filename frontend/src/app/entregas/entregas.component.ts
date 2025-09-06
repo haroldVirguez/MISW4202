@@ -1,13 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Entrega } from './cancion'; 
-import { EntregasService } from './canciones.service'; 
+import { Entrega } from './entrega'; 
+import { EntregasService } from './entregas.service'; 
 import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-entregas',
-  templateUrl: './canciones.component.html',
-  styleUrls: ['./canciones.component.css'],
+  templateUrl: './entregas.component.html',
+  styleUrls: ['./entregas.component.css'],
   standalone: false
 })
 

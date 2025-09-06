@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { EntregasComponent } from './canciones/canciones.component';
+import { EntregasComponent } from './entregas/entregas.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/entregas', pathMatch: 'full' },
