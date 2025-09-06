@@ -8,7 +8,7 @@ from datetime import datetime
 
 # Solo importar cuando estamos en el contexto del worker
 try:
-    from celery_worker import worker_celery
+    from celery_app.worker import worker_celery
     celery_instance = worker_celery
     print("✓ Usando worker_celery para tareas de monitor")
 except ImportError:

@@ -93,7 +93,7 @@ class VistaTareas(Resource):
         Envía una tarea asíncrona usando el dispatcher desacoplado
         """
         # Importar el dispatcher limpio
-        from shared.task_dispatcher import LogisticaTasks, MonitorTasks, task_dispatcher
+        from celery_app.dispatcher import LogisticaTasks, MonitorTasks, task_dispatcher
         
         data = request.get_json()
         if not data:
@@ -184,7 +184,7 @@ class VistaTareas(Resource):
         """
         Consulta el estado/resultado de una tarea específica
         """
-        from shared.task_dispatcher import task_dispatcher
+        from celery_app.dispatcher import task_dispatcher
         
         if task_id:
             # Obtener resultado de tarea específica

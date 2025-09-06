@@ -16,7 +16,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: m-logistica-inventario
-    command: python entrypoint_logistica.py
+    command: python entrypoints/entrypoint_logistica.py
     ports:
       - "5002:5002"
     environment:
@@ -41,7 +41,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: m-monitor
-    command: python entrypoint_monitor.py
+    command: python entrypoints/entrypoint_monitor.py
     ports:
       - "5001:5001"
     environment:
@@ -67,7 +67,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: celery-worker
-    command: celery -A celery_worker.worker_celery worker --loglevel=info -Q celery,logistica,monitor
+    command: celery -A celery_app.worker.worker_celery worker --loglevel=info -Q celery,logistica,monitor
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -87,12 +87,13 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: celery-flower
-    command: celery -A celery_worker.worker_celery flower --port=5555
+    command: celery -A celery_app.worker.worker_celery flower --port=5555
     ports:
       - "5555:5555"
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLOWER_UNAUTHENTICATED_API=true
     depends_on:
       - redis
       - celery-worker

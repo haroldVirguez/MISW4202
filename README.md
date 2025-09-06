@@ -19,7 +19,7 @@ La aplicación está dividida en microservicios independientes con una arquitect
 - **Worker Celery**: `celery_worker.py` - Auto-discovery y ejecución de tareas
 - **Client Celery**: `celery_client.py` - Dispatch desde microservicios Flask
 - **Task Registry**: `task_registry.py` - Metadata sin acoplamiento de código
-- **Task Dispatcher**: `task_dispatcher.py` - Interface limpia para envío
+- **Task Dispatcher**: `celery_app/dispatcher.py` - Interface limpia para envío
 
 ## Estructura del Proyecto
 
@@ -41,10 +41,15 @@ MISW4202/
 │       └── tasks.py            # Tareas de monitoreo
 ├── entrypoint_logistica.py      # Entry point para logística
 ├── entrypoint_monitor.py        # Entry point para monitor
-├── celery_worker.py             # Worker Celery con auto-discovery
-├── celery_client.py             # Client Celery para dispatch
-├── task_registry.py             # Registry de metadatos de tareas
-├── task_dispatcher.py           # Interface limpia para envío
+├── celery_app/                  # Configuración de Celery
+│   ├── worker.py                # Celery worker con auto-discovery
+│   ├── client.py                # Celery client para dispatch
+│   ├── dispatcher.py            # Interface limpia para envío
+│   └── task_registry.py         # Registry de tareas disponibles
+├── entrypoints/                 # Puntos de entrada microservicios
+│   ├── entrypoint_logistica.py  # Entrada logística
+│   ├── entrypoint_monitor.py    # Entrada monitor
+│   └── entrypoint_template.py   # Template para nuevos servicios
 ├── frontend/                    # Aplicación Angular
 ├── docker-compose.yml
 ├── Dockerfile                   # Imagen compartida
@@ -172,7 +177,7 @@ El módulo `shared` proporciona funciones reutilizables para Flask (sin Celery):
 - **`celery_worker.py`**: Worker con auto-discovery de tareas (sin Flask)
 - **`celery_client.py`**: Client para dispatch desde Flask
 - **`task_registry.py`**: Registro de metadatos sin acoplamiento
-- **`task_dispatcher.py`**: Interface limpia para envío de tareas
+- **`celery_app/dispatcher.py`**: Interface limpia para envío de tareas
 
 ### **🚀 Cómo agregar un nuevo microservicio:**
 
@@ -195,7 +200,7 @@ El módulo `shared` proporciona funciones reutilizables para Flask (sin Celery):
 3. **Si necesitas tareas asíncronas, crear tasks.py**:
 
    ```python
-   from celery_worker import worker_celery
+   from celery_app.worker import worker_celery
    
    @worker_celery.task(name='mi_servicio.mi_tarea')
    def mi_tarea_async(data):
