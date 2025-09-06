@@ -20,7 +20,7 @@ COPY . .
 RUN mkdir -p /data
 
 # Hacer los entry points ejecutables
-RUN chmod +x entrypoint_*.py
+RUN chmod +x entrypoints/entrypoint_*.py
 
 # El comando será definido en docker-compose para cada servicio
 # Por defecto, mostrar mensaje de ayuda

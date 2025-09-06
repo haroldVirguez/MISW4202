@@ -45,7 +45,7 @@
 - **`celery_worker.py`**: Instancia worker_celery para ejecución
 - **`celery_client.py`**: Instancia flask_celery para dispatch
 - **`task_registry.py`**: Registry de metadatos sin código
-- **`task_dispatcher.py`**: Interface limpia para envío
+- **`celery_app/dispatcher.py`**: Interface limpia para envío
 - **Tareas en microservicios**: Auto-discovery por worker
 
 #### Para agregar un nuevo microservicio:

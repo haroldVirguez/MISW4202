@@ -18,7 +18,7 @@ class TaskDispatcher:
     def __init__(self):
         # Importar la instancia de Celery para Flask
         try:
-            from celery_client import flask_celery
+            from .client import flask_celery
             self.celery = flask_celery
             print("✓ TaskDispatcher configurado con flask_celery")
         except ImportError as e:
@@ -45,7 +45,7 @@ class TaskDispatcher:
             }
         
         # Verificar que la tarea existe en el registro
-        from task_registry import get_task_info, validate_task_params
+        from .task_registry import get_task_info, validate_task_params
         
         task_info = get_task_info(task_name)
         if not task_info:
@@ -140,7 +140,7 @@ class TaskDispatcher:
     
     def list_available_tasks(self) -> list:
         """Lista tareas disponibles"""
-        from task_registry import list_available_tasks
+        from .task_registry import list_available_tasks
         return list_available_tasks()
 
 # Instancia global del dispatcher
