@@ -8,6 +8,9 @@ Usa la instancia de Celery específica para Flask.
 
 from typing import Dict, Any, Optional
 from datetime import datetime
+from celery.result import AsyncResult
+from .client import flask_celery
+from .task_registry import list_available_tasks,  get_task_info, validate_task_params
 
 class TaskDispatcher:
     """
@@ -16,14 +19,8 @@ class TaskDispatcher:
     """
     
     def __init__(self):
-        # Importar la instancia de Celery para Flask
-        try:
-            from .client import flask_celery
-            self.celery = flask_celery
-            print("✓ TaskDispatcher configurado con flask_celery")
-        except ImportError as e:
-            print(f"❌ Error importando flask_celery: {e}")
-            self.celery = None
+        self.celery = flask_celery
+        print("✓ TaskDispatcher configurado con flask_celery")
     
     def dispatch_task(self, task_name: str, *args, **kwargs) -> Dict[str, Any]:
         """
@@ -43,9 +40,7 @@ class TaskDispatcher:
                 'task_name': task_name,
                 'status': 'FAILED'
             }
-        
-        # Verificar que la tarea existe en el registro
-        from .task_registry import get_task_info, validate_task_params
+      
         
         task_info = get_task_info(task_name)
         if not task_info:
@@ -96,7 +91,6 @@ class TaskDispatcher:
             return {'error': 'Celery no disponible', 'task_id': task_id}
         
         try:
-            from celery.result import AsyncResult
             result = AsyncResult(task_id, app=self.celery)
             
             response = {
@@ -132,7 +126,6 @@ class TaskDispatcher:
             return 'ERROR'
         
         try:
-            from celery.result import AsyncResult
             result = AsyncResult(task_id, app=self.celery)
             return result.status
         except Exception:
@@ -140,7 +133,6 @@ class TaskDispatcher:
     
     def list_available_tasks(self) -> list:
         """Lista tareas disponibles"""
-        from .task_registry import list_available_tasks
         return list_available_tasks()
 
 # Instancia global del dispatcher
