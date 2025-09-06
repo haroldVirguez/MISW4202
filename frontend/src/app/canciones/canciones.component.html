@@ -1,0 +1,23 @@
+<h1>Canciones</h1>
+<table class ="table" *ngIf="canciones$ | async as canciones; else loading">
+  <thead>
+    <tr>
+      <th>Título</th>
+      <th>Minutos</th>
+      <th>Segundos</th>
+      <th>Intérprete</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let cancion of canciones">
+      <td>{{cancion.titulo}}</td>
+      <td>{{cancion.minutos}}</td>
+      <td>{{cancion.segundos}}</td>
+      <td>{{cancion.interprete}}</td>
+    </tr>
+  </tbody>
+</table>
+
+<ng-template #loading>
+  <div>Cargando canciones...</div>
+</ng-template>
