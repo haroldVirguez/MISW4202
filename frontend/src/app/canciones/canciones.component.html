@@ -1,5 +1,5 @@
-<h1>Canciones</h1>
-<table class ="table" *ngIf="canciones$ | async as canciones; else loading">
+<h1>Entregas</h1>
+<table class ="table" *ngIf="entregas$ | async as entregas; else loading">
   <thead>
     <tr>
       <th>Título</th>
@@ -9,15 +9,15 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let cancion of canciones">
-      <td>{{cancion.titulo}}</td>
-      <td>{{cancion.minutos}}</td>
-      <td>{{cancion.segundos}}</td>
-      <td>{{cancion.interprete}}</td>
+    <tr *ngFor="let entrega of entregas">
+      <td>{{entrega.titulo}}</td>
+      <td>{{entrega.minutos}}</td>
+      <td>{{entrega.segundos}}</td>
+      <td>{{entrega.interprete}}</td>
     </tr>
   </tbody>
 </table>
 
 <ng-template #loading>
-  <div>Cargando canciones...</div>
+  <div>Cargando entregas...</div>
 </ng-template>

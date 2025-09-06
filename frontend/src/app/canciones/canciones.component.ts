@@ -1,23 +1,23 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Cancion } from './cancion'; 
-import { CancionesService } from './canciones.service'; 
+import { Entrega } from './cancion'; 
+import { EntregasService } from './canciones.service'; 
 import { Observable } from 'rxjs';
 
 @Component({
-  selector: 'app-canciones',
+  selector: 'app-entregas',
   templateUrl: './canciones.component.html',
   styleUrls: ['./canciones.component.css'],
   standalone: false
 })
 
-export class CancionesComponent implements OnInit {
-  canciones$: Observable<Cancion[]>;
+export class EntregasComponent implements OnInit {
+  entregas$: Observable<Entrega[]>;
 
-  constructor(private cancionesService: CancionesService) {}
+  constructor(private entregasService: EntregasService) {}
   
   ngOnInit() {
-    this.canciones$ = this.cancionesService.getCanciones();
+    this.entregas$ = this.entregasService.getEntregas();
   }
   
 }

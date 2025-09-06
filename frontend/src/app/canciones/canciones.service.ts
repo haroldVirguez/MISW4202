@@ -1,15 +1,15 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Cancion } from './cancion';
+import { Entrega } from './cancion';
 
 @Injectable({
   providedIn: 'root',
 })
-export class CancionesService {
+export class EntregasService {
   constructor(private http: HttpClient) {}
 
-  getCanciones(): Observable<Cancion[]> {
-    return this.http.get<Cancion[]>('http://localhost:5000/canciones');
+  getEntregas(): Observable<Entrega[]> {
+    return this.http.get<Entrega[]>('http://localhost:5000/entregas');
   }
 }

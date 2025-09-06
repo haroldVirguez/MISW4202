@@ -3,7 +3,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { HttpClientModule } from '@angular/common/http';
 import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
-import { CancionesModule } from './canciones/canciones.module'; 
+import { EntregasModule } from './canciones/canciones.module'; 
 
 @NgModule({
   declarations: [
@@ -12,7 +12,7 @@ import { CancionesModule } from './canciones/canciones.module';
   imports: [
     BrowserModule,
     AppRoutingModule,
-    CancionesModule,
+    EntregasModule,
     HttpClientModule,
   ],
   providers: [
