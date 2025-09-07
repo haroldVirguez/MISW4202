@@ -48,6 +48,13 @@ TASK_REGISTRY = {
         'queue': 'monitor',
         'timeout': 120,
         'module': 'microservices.monitor.tasks'
+    },
+    'monitor.ping_logistica': {
+        'description': 'Ping echo al microservicio de Logística e Inventarios',
+        'params': [],
+        'queue': 'monitor',
+        'timeout': 5,
+        'module': 'microservices.monitor.tasks'
     }
 }
 

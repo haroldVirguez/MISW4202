@@ -6,6 +6,8 @@ sys.path.insert(0, '/app')
 
 from flask import jsonify
 import redis
+import requests
+import time
 from datetime import datetime
 
 # Importar configuración compartida
@@ -103,6 +105,102 @@ def workers_info():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/monitor/ping-logistica', methods=['GET'])
+def ping_logistica():
+    """Ping echo al microservicio de Logística e Inventarios"""
+    try:
+        start_time = time.time()
+        logistica_url = "http://m-logistica-inventario:5002/health"
+        
+        response = requests.get(logistica_url, timeout=2)
+        end_time = time.time()
+        
+        response_time = round((end_time - start_time) * 1000, 2)  
+        
+        if response.status_code == 200:
+            status = "healthy"
+            message = "Ping exitoso"
+        else:
+            status = "degraded"
+            message = f"Respuesta inesperada: {response.status_code}"
+            
+        return jsonify({
+            'target_service': 'logistica_inventario',
+            'status': status,
+            'message': message,
+            'response_time_ms': response_time,
+            'http_status': response.status_code,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': True
+        })
+        
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'target_service': 'logistica_inventario',
+            'status': 'timeout',
+            'message': 'Timeout: El servicio no respondió en 2 segundos',
+            'response_time_ms': 2000,
+            'http_status': None,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': False
+        }), 408
+        
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'target_service': 'logistica_inventario',
+            'status': 'unreachable',
+            'message': 'Error de conexión: El servicio no está disponible',
+            'response_time_ms': None,
+            'http_status': None,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': False
+        }), 503
+        
+    except Exception as e:
+        return jsonify({
+            'target_service': 'logistica_inventario',
+            'status': 'error',
+            'message': f'Error inesperado: {str(e)}',
+            'response_time_ms': None,
+            'http_status': None,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': False
+        }), 500
+
+@app.route('/monitor/logistica-status', methods=['GET'])
+def logistica_status():
+    """Estado detallado del microservicio de Logística e Inventarios"""
+    try:
+        ping_result = ping_logistica()
+        ping_data = ping_result.get_json()
+        is_healthy = ping_data.get('ping_successful', False)
+    
+        broker_status = check_broker_connectivity()
+        
+        if is_healthy and broker_status['redis_connected']:
+            overall_status = 'healthy'
+        elif broker_status['redis_connected']:
+            overall_status = 'degraded'
+        else:
+            overall_status = 'critical'
+            
+        return jsonify({
+            'service': 'logistica_inventario',
+            'overall_status': overall_status,
+            'ping_echo': ping_data,
+            'broker_status': broker_status,
+            'last_check': datetime.now().isoformat(),
+            'recommendations': get_recommendations(overall_status)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'service': 'logistica_inventario',
+            'overall_status': 'error',
+            'error': str(e),
+            'last_check': datetime.now().isoformat()
+        }), 500
+
 def get_celery_info():
     """Obtiene información sobre Celery desde Redis"""
     try:
@@ -135,6 +233,64 @@ def get_active_workers():
         return workers
     except Exception as e:
         return []
+
+def check_broker_connectivity():
+    """Verifica la conectividad del broker de mensajería (Redis)"""
+    try:
+        redis_ping = redis_client.ping()
+        celery_queues = ['celery', 'logistica', 'monitor']
+        queue_status = {}
+        
+        for queue in celery_queues:
+            try:
+                queue_length = redis_client.llen(queue)
+                queue_status[queue] = {
+                    'length': queue_length,
+                    'accessible': True
+                }
+            except Exception:
+                queue_status[queue] = {
+                    'length': 0,
+                    'accessible': False
+                }
+        
+        return {
+            'redis_connected': redis_ping,
+            'redis_ping': redis_ping,
+            'queues': queue_status,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            'redis_connected': False,
+            'redis_ping': False,
+            'error': str(e),
+            'queues': {},
+            'timestamp': datetime.now().isoformat()
+        }
+
+def get_recommendations(status):
+    """Genera recomendaciones basadas en el estado del servicio"""
+    recommendations = []
+    
+    if status == 'healthy':
+        recommendations.append("✅ Servicio funcionando correctamente")
+        recommendations.append("🔄 Continuar monitoreo regular")
+    elif status == 'degraded':
+        recommendations.append("⚠️ Servicio con problemas de conectividad")
+        recommendations.append("🔍 Verificar logs del microservicio de logística")
+        recommendations.append("🔄 Reintentar operaciones fallidas")
+    elif status == 'critical':
+        recommendations.append("🚨 Servicio crítico - Acción inmediata requerida")
+        recommendations.append("🔄 Reiniciar microservicio de logística")
+        recommendations.append("📞 Notificar al equipo de operaciones")
+        recommendations.append("💾 Verificar integridad de datos")
+    else:
+        recommendations.append("❓ Estado desconocido - Investigar")
+        recommendations.append("🔍 Revisar logs del sistema")
+    
+    return recommendations
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

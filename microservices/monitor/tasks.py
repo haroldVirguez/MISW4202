@@ -92,9 +92,93 @@ def generate_metrics_impl():
     print(f"✅ [MONITOR] Métricas generadas: {result['metrics_id']}")
     return result
 
+def ping_logistica_async_impl():
+    """Ping echo asíncrono al microservicio de Logística e Inventarios"""
+    print("🏥 [MONITOR] Ejecutando ping echo a Logística e Inventarios")
+    
+    try:
+        import requests
+        
+        start_time = time.time()
+        logistica_url = "http://m-logistica-inventario:5002/health"
+        response = requests.get(logistica_url, timeout=2)
+        end_time = time.time()
+        
+        response_time = round((end_time - start_time) * 1000, 2)
+        
+        if response.status_code == 200:
+            status = "healthy"
+            message = "Ping exitoso"
+            ping_successful = True
+        else:
+            status = "degraded"
+            message = f"Respuesta inesperada: {response.status_code}"
+            ping_successful = False
+            
+        result = {
+            'ping_id': f"PING_{int(time.time())}",
+            'target_service': 'logistica_inventario',
+            'status': status,
+            'message': message,
+            'response_time_ms': response_time,
+            'http_status': response.status_code,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': ping_successful,
+            'worker': 'monitor_worker'
+        }
+        
+        print(f"✅ [MONITOR] Ping completado - Status: {status}, Tiempo: {response_time}ms")
+        return result
+        
+    except requests.exceptions.Timeout:
+        result = {
+            'ping_id': f"PING_{int(time.time())}",
+            'target_service': 'logistica_inventario',
+            'status': 'timeout',
+            'message': 'Timeout: El servicio no respondió en 2 segundos',
+            'response_time_ms': 2000,
+            'http_status': None,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': False,
+            'worker': 'monitor_worker'
+        }
+        print("❌ [MONITOR] Ping timeout - Servicio no respondió")
+        return result
+        
+    except requests.exceptions.ConnectionError:
+        result = {
+            'ping_id': f"PING_{int(time.time())}",
+            'target_service': 'logistica_inventario',
+            'status': 'unreachable',
+            'message': 'Error de conexión: El servicio no está disponible',
+            'response_time_ms': None,
+            'http_status': None,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': False,
+            'worker': 'monitor_worker'
+        }
+        print("❌ [MONITOR] Ping fallido - Servicio no disponible")
+        return result
+        
+    except Exception as e:
+        result = {
+            'ping_id': f"PING_{int(time.time())}",
+            'target_service': 'logistica_inventario',
+            'status': 'error',
+            'message': f'Error inesperado: {str(e)}',
+            'response_time_ms': None,
+            'http_status': None,
+            'timestamp': datetime.now().isoformat(),
+            'ping_successful': False,
+            'worker': 'monitor_worker'
+        }
+        print(f"❌ [MONITOR] Ping error: {str(e)}")
+        return result
+
 # Registrar tareas con nombres específicos
 health_check = _register_task(health_check_impl, 'monitor.health_check')
 log_activity = _register_task(log_activity_impl, 'monitor.log_activity')
 generate_metrics = _register_task(generate_metrics_impl, 'monitor.generate_metrics')
+ping_logistica_async = _register_task(ping_logistica_async_impl, 'monitor.ping_logistica')
 
 print("✓ Tareas de monitor registradas")
