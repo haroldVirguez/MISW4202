@@ -110,9 +110,9 @@ class VistaTareas(Resource):
             try:
                 if random.random() < 0.5:
                     raise Exception("Sistema temporalmente no disponible")
-                
-                task_result = LogisticaTasks.procesar_entrega(entrega_id)
-                
+
+                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA')
+
                 return {
                     "message": "Tarea enviada",
                     "entrega_id": entrega_id,
@@ -122,8 +122,14 @@ class VistaTareas(Resource):
                 }, 200
                 
             except Exception as e:
-                task_result = LogisticaTasks.procesar_entrega(entrega_id)
-                raise e
+                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'PENDING_SYSTEM_CONFIRMATION')
+                return {
+                    "message": "Tarea enviada",
+                    "entrega_id": entrega_id,
+                    "estado": "Pendiente Confirmacion Sistema",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    **task_result
+                }, 200
             
         elif tipo_tarea == "validar_inventario":
             producto_id = data.get("producto_id")
@@ -193,7 +199,7 @@ class VistaTareas(Resource):
             }, 400
         
     def get(self):
-        tasks= task_dispatcher.listar_task_from_redis()
+        tasks= task_dispatcher.list_tasks_from_redis()
         return {"message": "Lista de tareas en Redis", "tasks": [task for task in tasks]}, 200
 
 
@@ -201,24 +207,12 @@ class VistaTareaDetail(Resource):
     """
     Endpoint para consultar el estado de una tarea asíncrona por ID
     """
-    def get(self, task_id=None):
+    def get(self, task_id):
         """
         Consulta el estado/resultado de una tarea específica
         """
+        # Obtener resultado de tarea específica
+        task_result = task_dispatcher.get_task_result(task_id)
+        return task_result, 200
         
-        if task_id:
-            # Obtener resultado de tarea específica
-            task_result = task_dispatcher.get_task_result(task_id)
-            return task_result, 200
-        else:
-            # Listar tareas disponibles
-            available_tasks = task_dispatcher.list_available_tasks()
-            return {
-                "available_tasks": available_tasks,
-                "endpoints": {
-                    "dispatch": "POST /tareas",
-                    "status": "GET /tareas/<task_id>"
-                },
-                "info": "Use POST para enviar tareas, GET con task_id para consultar estado"
-            }, 200
         

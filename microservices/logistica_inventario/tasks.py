@@ -22,14 +22,14 @@ def _register_task(func, name):
         return func
 
 # Implementaciones de las tareas
-def procesar_entrega_impl(entrega_id):
+def procesar_entrega_impl(entrega_id, status):
     """Procesa una entrega específica"""
-    print(f"🚚 [LOGISTICA] Procesando entrega {entrega_id}")
+    print(f"🚚 [LOGISTICA] Procesando entrega {entrega_id} con estado {status}")
     time.sleep(2)  # Simular trabajo
     
     result = {
         'entrega_id': entrega_id,
-        'status': 'procesada',
+        'status': status,
         'timestamp': datetime.now().isoformat(),
         'worker': 'logistica_worker',
         'detalles': {

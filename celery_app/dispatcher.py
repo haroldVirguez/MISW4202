@@ -135,34 +135,121 @@ class TaskDispatcher:
         """Lista tareas disponibles"""
         return list_available_tasks()
     
-    def listar_task_from_redis(self) -> list:
-        """Lista tareas activas/pendientes/en proceso en Redis"""
+    def list_tasks_from_redis(self) -> list:
+        """Lista todas las tareas: activas, pendientes, reservadas y completadas"""
         if not self.celery:
             return []
         
-        i = self.celery.control.inspect()
-        all_active_tasks = []
+        all_tasks = []
         
-        # Obtener tareas activas (en ejecución)
-        active = i.active()
-        if active:
-            for worker, tasks in active.items():
-                all_active_tasks.extend(tasks)
+        try:
+            # 1. Obtener tareas activas/pendientes/reservadas usando inspect
+            i = self.celery.control.inspect()
+            
+            # Tareas activas (en ejecución)
+            active = i.active()
+            if active:
+                for worker, tasks in active.items():
+                    for task in tasks:
+                        task['worker'] = worker
+                        task['state'] = 'ACTIVE'
+                        all_tasks.append(task)
+            
+            # Tareas pendientes (en cola)
+            scheduled = i.scheduled()
+            if scheduled:
+                for worker, tasks in scheduled.items():
+                    for task in tasks:
+                        task['worker'] = worker
+                        task['state'] = 'SCHEDULED'
+                        all_tasks.append(task)
+            
+            # Tareas reservadas
+            reserved = i.reserved()
+            if reserved:
+                for worker, tasks in reserved.items():
+                    for task in tasks:
+                        task['worker'] = worker
+                        task['state'] = 'RESERVED'
+                        all_tasks.append(task)
+            
+            print(f"Tareas activas/pendientes/reservadas encontradas: {len(all_tasks)}")
+            
+        except Exception as e:
+            print(f"Error obteniendo tareas activas: {e}")
         
-        # Obtener tareas pendientes (en cola)
-        scheduled = i.scheduled()
-        if scheduled:
-            for worker, tasks in scheduled.items():
-                all_active_tasks.extend(tasks)
+        try:
+            # 2. Obtener tareas completadas desde el backend de resultados
+            backend = self.celery.backend
+            
+            if hasattr(backend, 'client') and backend.client:
+                # Para Redis backend
+                try:
+                    keys = backend.client.keys('celery-task-meta-*')
+                    print(f"Claves encontradas en Redis backend: {len(keys)}")
+                    
+                    for key in keys[:100]:  # Limitar a 100 para evitar sobrecarga
+                        try:
+                            if isinstance(key, bytes):
+                                key_str = key.decode('utf-8')
+                            else:
+                                key_str = str(key)
+                                
+                            task_id = key_str.replace('celery-task-meta-', '')
+                            
+                            # Usar AsyncResult para obtener información completa
+                            result = AsyncResult(task_id, app=self.celery)
+                            
+                            # Obtener metadatos del resultado
+                            task_meta = backend.client.get(key)
+                            if task_meta:
+                                import json
+                                try:
+                                    meta_data = json.loads(task_meta.decode('utf-8'))
+                                    
+                                    task_info = {
+                                        'id': task_id,
+                                        'name': meta_data.get('task_name', 'unknown'),
+                                        'state': result.status,
+                                        'result': meta_data.get('result'),
+                                        'args': meta_data.get('args', []),
+                                        'kwargs': meta_data.get('kwargs', {}),
+                                        'received': meta_data.get('date_done'),
+                                        'worker': 'completed',
+                                        'source': 'result_backend'
+                                    }
+                                    
+                                    all_tasks.append(task_info)
+                                    
+                                except json.JSONDecodeError:
+                                    # Si no se puede parsear JSON, usar información básica
+                                    all_tasks.append({
+                                        'id': task_id,
+                                        'name': 'unknown',
+                                        'state': result.status,
+                                        'result': str(result.result) if result.ready() else None,
+                                        'args': [],
+                                        'kwargs': {},
+                                        'worker': 'completed',
+                                        'source': 'result_backend'
+                                    })
+                                    
+                        except Exception as task_error:
+                            print(f"Error procesando tarea {task_id}: {task_error}")
+                            continue
+                            
+                except Exception as redis_error:
+                    print(f"Error accediendo a Redis backend: {redis_error}")
+                    
+            else:
+                print("Backend no es Redis o no tiene cliente disponible")
+                
+        except Exception as e:
+            print(f"Error obteniendo tareas completadas: {e}")
         
-        # Obtener tareas reservadas
-        reserved = i.reserved()
-        if reserved:
-            for worker, tasks in reserved.items():
-                all_active_tasks.extend(tasks)
-        
-        return all_active_tasks
-
+        print(f"Total de tareas encontradas: {len(all_tasks)}")
+        return all_tasks
+    
 # Instancia global del dispatcher
 task_dispatcher = TaskDispatcher()
 
@@ -171,10 +258,11 @@ class LogisticaTasks:
     """Wrapper para tareas de logística sin importar código directo"""
     
     @staticmethod
-    def procesar_entrega(entrega_id: int, **options):
+    def procesar_entrega(entrega_id: int, status: str, **options):
         return task_dispatcher.dispatch_task(
             'logistica.procesar_entrega',
             entrega_id,
+            status,
             **options
         )
     
