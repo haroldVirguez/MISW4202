@@ -104,14 +104,29 @@ class VistaTareas(Resource):
         
         if tipo_tarea == "procesar_entrega":
             entrega_id = data.get("entrega_id")
+            retry_count = data.get("_retry_count", 0)  # Parámetro interno para reintentos
+            
             if not entrega_id:
                 return {"error": "entrega_id es requerido"}, 400
             
             try:
+                # Si es un reintento (retry_count > 0), procesar directamente
+                if retry_count > 0:
+                    task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA', retry_count)
+                    return {
+                        "message": "Tarea de reintento enviada",
+                        "entrega_id": entrega_id,
+                        "estado": "reintento",
+                        "retry_count": retry_count,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        **task_result
+                    }, 200
+                
+                # Para tareas nuevas, aplicar la lógica de falla aleatoria
                 if random.random() < 0.5:
                     raise Exception("Sistema temporalmente no disponible")
 
-                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA')
+                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA', retry_count)
 
                 return {
                     "message": "Tarea enviada",
@@ -122,7 +137,7 @@ class VistaTareas(Resource):
                 }, 200
                 
             except Exception as e:
-                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'PENDING_SYSTEM_CONFIRMATION')
+                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'PENDING_SYSTEM_CONFIRMATION', retry_count)
                 return {
                     "message": "Tarea enviada",
                     "entrega_id": entrega_id,

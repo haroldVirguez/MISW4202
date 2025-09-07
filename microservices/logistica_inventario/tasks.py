@@ -2,6 +2,8 @@
 Definición de tareas de logística que serán auto-descubiertas por el worker
 """
 import time
+import random
+import requests
 from datetime import datetime
 
 # Solo importar cuando estamos en el contexto del worker
@@ -21,17 +23,106 @@ def _register_task(func, name):
         # Si no hay celery, devolver la función original
         return func
 
+def _retry_task_via_api(entrega_id, current_retry=0, max_retries=3):
+    """
+    Realiza un retry automático llamando a la API
+    """
+    if current_retry >= max_retries:
+        print(f"❌ [LOGISTICA] Máximo de reintentos alcanzado para entrega {entrega_id}")
+        return {
+            'entrega_id': entrega_id,
+            'status': 'FAILED_MAX_RETRIES',
+            'timestamp': datetime.now().isoformat(),
+            'retry_count': current_retry,
+            'error': 'Excedido máximo de reintentos'
+        }
+    
+    try:
+        # Esperar un poco antes del reintento
+        time.sleep(2 ** current_retry)  # Backoff exponencial
+        
+        print(f"🔄 [LOGISTICA] Reintentando entrega {entrega_id} (intento {current_retry + 1}/{max_retries})")
+        
+        # Llamar a la API para reenviar la tarea
+        api_url = "http://m-logistica-inventario:5002/tareas"
+        payload = {
+            "tipo": "procesar_entrega",
+            "entrega_id": entrega_id,
+            "_retry_count": current_retry + 1
+        }
+        
+        response = requests.post(
+            api_url,
+            json=payload,
+            timeout=10,
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        if response.status_code in [200, 202]:
+            result = response.json()
+            print(f"✅ [LOGISTICA] Reintento exitoso para entrega {entrega_id}")
+            return {
+                'entrega_id': entrega_id,
+                'status': 'RETRY_SUBMITTED',
+                'timestamp': datetime.now().isoformat(),
+                'retry_count': current_retry + 1,
+                'task_id': result.get('task_id'),
+                'original_response': result
+            }
+        else:
+            print(f"⚠️ [LOGISTICA] Error en reintento API: {response.status_code}")
+            return _retry_task_via_api(entrega_id, current_retry + 1, max_retries)
+            
+    except Exception as e:
+        print(f"⚠️ [LOGISTICA] Error en reintento: {str(e)}")
+        return _retry_task_via_api(entrega_id, current_retry + 1, max_retries)
+
 # Implementaciones de las tareas
-def procesar_entrega_impl(entrega_id, status):
-    """Procesa una entrega específica"""
-    print(f"🚚 [LOGISTICA] Procesando entrega {entrega_id} con estado {status}")
+def procesar_entrega_impl(entrega_id, status, _retry_count=0):
+    """Procesa una entrega específica con mecanismo de retry automático"""
+    print(f"🚚 [LOGISTICA] Procesando entrega {entrega_id} con estado {status} (retry: {_retry_count})")
     time.sleep(2)  # Simular trabajo
     
+    # Simular falla del sistema con probabilidad
+    system_available = random.random() > 0.3  # 70% de éxito
+    
+    if not system_available and status != 'PENDING_SYSTEM_CONFIRMATION':
+        print(f"⚠️ [LOGISTICA] Sistema no disponible para entrega {entrega_id}")
+        
+        # Si es el primer intento, marcar como pendiente y realizar retry automático
+        if _retry_count == 0:
+            result = {
+                'entrega_id': entrega_id,
+                'status': 'PENDING_SYSTEM_CONFIRMATION',
+                'timestamp': datetime.now().isoformat(),
+                'worker': 'logistica_worker',
+                'retry_count': _retry_count,
+                'message': 'Sistema temporalmente no disponible, reintentando automáticamente...'
+            }
+            
+            # Realizar retry automático en background
+            retry_result = _retry_task_via_api(entrega_id, _retry_count)
+            result['retry_info'] = retry_result
+            
+            return result
+        else:
+            # En reintentos, devolver error si sigue fallando
+            return {
+                'entrega_id': entrega_id,
+                'status': 'FAILED_RETRY',
+                'timestamp': datetime.now().isoformat(),
+                'worker': 'logistica_worker',
+                'retry_count': _retry_count,
+                'error': 'Sistema sigue no disponible después de reintento'
+            }
+    
+    # Procesamiento exitoso
     result = {
         'entrega_id': entrega_id,
-        'status': status,
+        'status': 'ENTREGADA' if system_available else status,
         'timestamp': datetime.now().isoformat(),
         'worker': 'logistica_worker',
+        'retry_count': _retry_count,
         'detalles': {
             'validado': True,
             'costo_calculado': 150.00,
