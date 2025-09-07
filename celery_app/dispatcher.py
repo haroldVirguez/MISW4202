@@ -214,9 +214,11 @@ class TaskDispatcher:
                                         'result': meta_data.get('result'),
                                         'args': meta_data.get('args', []),
                                         'kwargs': meta_data.get('kwargs', {}),
-                                        'received': meta_data.get('date_done'),
+                                        'received': meta_data.get('date_received'),
+                                        'finished': meta_data.get('date_done'),
                                         'worker': 'completed',
-                                        'source': 'result_backend'
+                                        'source': 'result_backend',
+                                        'metadata': meta_data
                                     }
                                     
                                     all_tasks.append(task_info)

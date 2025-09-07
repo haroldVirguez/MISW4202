@@ -39,8 +39,8 @@ def _retry_task_via_api(entrega_id, current_retry=0, max_retries=3):
     
     try:
         # Esperar un poco antes del reintento
-        time.sleep(2 ** current_retry)  # Backoff exponencial
-        
+        time.sleep(random.uniform(0, 1) ** current_retry)  # Backoff exponencial
+
         print(f"🔄 [LOGISTICA] Reintentando entrega {entrega_id} (intento {current_retry + 1}/{max_retries})")
         
         # Llamar a la API para reenviar la tarea
@@ -81,7 +81,7 @@ def _retry_task_via_api(entrega_id, current_retry=0, max_retries=3):
 def procesar_entrega_impl(entrega_id, status, _retry_count=0):
     """Procesa una entrega específica con mecanismo de retry automático"""
     print(f"🚚 [LOGISTICA] Procesando entrega {entrega_id} con estado {status} (retry: {_retry_count})")
-    time.sleep(2)  # Simular trabajo
+    time.sleep(random.uniform(0, 2))  # Simular trabajo
     
     if status == 'PENDING_SYSTEM_CONFIRMATION':
         print(f"⚠️ [LOGISTICA] Sistema no disponible para entrega {entrega_id}")

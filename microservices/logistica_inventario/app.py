@@ -31,7 +31,7 @@ api.add_resource(VistaEntregas, '/entregas')
 api.add_resource(VistaEntrega, '/entrega/<int:id_entrega>')
 api.add_resource(VistaSignIn, '/signin', '/signin/<int:id_usuario>')
 api.add_resource(VistaLogIn, '/login')
-api.add_resource(VistaTareaDetail, '/tarea', '/tareas/<string:task_id>')
+api.add_resource(VistaTareaDetail, '/tarea', '/tarea/<string:task_id>')
 api.add_resource(VistaTareas, '/tareas')
 
 # Configurar JWT
