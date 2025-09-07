@@ -31,13 +31,6 @@
               <i class="fas fa-plus"></i>
               {{ creandoEntrega ? 'Creando...' : 'Crear Nueva Entrega' }}
             </button>
-            <button 
-              class="btn btn-check" 
-              (click)="obtenerEstadoEntrega()"
-              [disabled]="obteniendoEstado || !ultimaEntrega">
-              <i class="fas fa-search"></i>
-              {{ obteniendoEstado ? 'Verificando...' : 'Verificar Estado' }}
-            </button>
           </div>
         </div>
       </div>
@@ -47,13 +40,13 @@
             <h5><i class="fas fa-plus-circle"></i> Última Entrega</h5>
             <p><strong>ID:</strong> {{ ultimaEntrega.id }}</p>
             <p><strong>Título:</strong> {{ ultimaEntrega.titulo }}</p>
-            <p><strong>Estado:</strong> {{ ultimaEntrega.estado }}</p>
+            <p><strong>Estado:</strong> {{ formatearEstado(ultimaEntrega.estado) }}</p>
           </div>
         </div>
         <div class="col-md-6" *ngIf="estadoEntrega && mostrarDetallesEntrega">
           <div class="estado-info">
             <h5><i class="fas fa-search"></i> Estado de Entrega</h5>
-            <p><strong>Estado:</strong> {{ estadoEntrega.estado }}</p>
+            <p><strong>Estado:</strong> {{ formatearEstado(estadoEntrega.estado) }}</p>
             <p><strong>Mensaje:</strong> {{ estadoEntrega.mensaje }}</p>
             <p><strong>Procesado:</strong> {{ estadoEntrega.procesado ? 'Sí' : 'No' }}</p>
           </div>

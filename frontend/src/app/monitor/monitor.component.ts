@@ -205,7 +205,7 @@ export class MonitorComponent implements OnInit, OnDestroy {
                 this.ultimaEntrega = {
                   id: response.id,
                   titulo: response.titulo,
-                  estado: 'pendiente',
+                  estado: taskResponse.estado || 'pendiente',
                   fecha_creacion: new Date().toISOString(),
                   task_id: taskResponse.task_id || `task_${Date.now()}`
                 };
@@ -223,7 +223,7 @@ export class MonitorComponent implements OnInit, OnDestroy {
                 this.ultimaEntrega = {
                   id: response.id,
                   titulo: response.titulo,
-                  estado: 'pendiente',
+                  estado: 'Pendiente Confirmacion Sistema',
                   fecha_creacion: new Date().toISOString(),
                   task_id: `task_${Date.now()}`
                 };
@@ -305,6 +305,16 @@ export class MonitorComponent implements OnInit, OnDestroy {
     this.creandoEntrega = false;
     this.obteniendoEstado = false;
     this.ultimaActualizacion = new Date();
+  }
+
+  formatearEstado(estado: string): string {
+    if (estado.toLowerCase().includes('confirmando')) {
+      return 'Pendiente Confirmación Sistema';
+    }
+    if (estado.toLowerCase().includes('exitoso')) {
+      return 'Exitoso';
+    }
+    return estado;
   }
 
 }
