@@ -1,0 +1,226 @@
+<div class="monitor-container">
+  <div class="monitor-header">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <h1 class="monitor-title">
+            <i class="fas fa-heartbeat"></i>
+            Health Monitor
+          </h1>
+          <p class="monitor-subtitle">Monitoreo en tiempo real del microservicio de Logística e Inventarios</p>
+        </div>
+        <div class="col-md-4 text-end">
+          <div class="status-indicator">
+            <div class="pulse-dot" [ngClass]="getOverallStatusClass()"></div>
+            <span class="status-text">{{ getOverallStatusText() }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mt-4">
+    <div class="delivery-flow-panel">
+      <div class="row">
+        <div class="col-12">
+          <div class="flow-buttons">
+            <button 
+              class="btn btn-create" 
+              (click)="crearEntrega()"
+              [disabled]="creandoEntrega">
+              <i class="fas fa-plus"></i>
+              {{ creandoEntrega ? 'Creando...' : 'Crear Nueva Entrega' }}
+            </button>
+            <button 
+              class="btn btn-check" 
+              (click)="obtenerEstadoEntrega()"
+              [disabled]="obteniendoEstado || !ultimaEntrega">
+              <i class="fas fa-search"></i>
+              {{ obteniendoEstado ? 'Verificando...' : 'Verificar Estado' }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="row mt-3" *ngIf="ultimaEntrega || estadoEntrega">
+        <div class="col-md-6" *ngIf="ultimaEntrega">
+          <div class="entrega-info">
+            <h5><i class="fas fa-plus-circle"></i> Última Entrega</h5>
+            <p><strong>ID:</strong> {{ ultimaEntrega.id }}</p>
+            <p><strong>Título:</strong> {{ ultimaEntrega.titulo }}</p>
+            <p><strong>Estado:</strong> {{ ultimaEntrega.estado }}</p>
+          </div>
+        </div>
+        <div class="col-md-6" *ngIf="estadoEntrega && mostrarDetallesEntrega">
+          <div class="estado-info">
+            <h5><i class="fas fa-search"></i> Estado de Entrega</h5>
+            <p><strong>Estado:</strong> {{ estadoEntrega.estado }}</p>
+            <p><strong>Mensaje:</strong> {{ estadoEntrega.mensaje }}</p>
+            <p><strong>Procesado:</strong> {{ estadoEntrega.procesado ? 'Sí' : 'No' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="row">
+        <div class="col-md-8">
+          <div class="btn-group" role="group">
+            <button 
+              class="btn btn-ping" 
+              (click)="hacerPing()"
+              [disabled]="pingEnProgreso">
+              <i class="fas fa-satellite-dish"></i>
+              {{ pingEnProgreso ? 'Ping en progreso...' : 'Ping Manual' }}
+            </button>
+            <button 
+              class="btn btn-refresh" 
+              (click)="obtenerEstadoCompleto()"
+              [disabled]="estadoEnProgreso">
+              <i class="fas fa-sync-alt" [class.fa-spin]="estadoEnProgreso"></i>
+              {{ estadoEnProgreso ? 'Actualizando...' : 'Actualizar Estado' }}
+            </button>
+          </div>
+        </div>
+        <div class="col-md-4 text-end">
+          <div class="last-update">
+            <i class="fas fa-clock"></i>
+            <span>Última actualización: {{ ultimaActualizacion | date:'HH:mm:ss' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="dashboard-card status-card">
+        <div class="card-header">
+          <h3><i class="fas fa-server"></i> Estado del Servicio</h3>
+        </div>
+        <div class="card-body">
+          <div class="status-grid" *ngIf="estadoLogistica">
+            <div class="status-item">
+              <div class="status-icon" [ngClass]="getStatusIconClass(estadoLogistica.ping_echo.status)">
+                <i [class]="getStatusIcon(estadoLogistica.ping_echo.status)"></i>
+              </div>
+              <div class="status-info">
+                <h4>{{ estadoLogistica.ping_echo.target_service }}</h4>
+                <p>{{ estadoLogistica.ping_echo.message }}</p>
+              </div>
+            </div>
+            <div class="metrics-row">
+              <div class="metric">
+                <span class="metric-label">Tiempo de Respuesta</span>
+                <span class="metric-value" [ngClass]="getResponseTimeClass(estadoLogistica.ping_echo.response_time_ms)">
+                  {{ estadoLogistica.ping_echo.response_time_ms }}ms
+                </span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Estado HTTP</span>
+                <span class="metric-value">{{ estadoLogistica.ping_echo.http_status }}</span>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="!estadoLogistica" class="text-center text-muted">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+            <p>Cargando estado del servicio...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-card broker-card">
+        <div class="card-header">
+          <h3><i class="fas fa-database"></i> Estado del Broker</h3>
+        </div>
+        <div class="card-body">
+          <div class="broker-status" *ngIf="estadoLogistica">
+            <div class="broker-item">
+              <div class="broker-icon" [ngClass]="estadoLogistica.broker_status.redis_connected ? 'connected' : 'disconnected'">
+                <i class="fas fa-database"></i>
+              </div>
+              <div class="broker-info">
+                <h4>Redis Connection</h4>
+                <p>{{ estadoLogistica.broker_status.redis_connected ? 'Conectado' : 'Desconectado' }}</p>
+              </div>
+            </div>
+            <div class="broker-item">
+              <div class="broker-icon" [ngClass]="estadoLogistica.broker_status.redis_ping ? 'connected' : 'disconnected'">
+                <i class="fas fa-satellite-dish"></i>
+              </div>
+              <div class="broker-info">
+                <h4>Redis Ping</h4>
+                <p>{{ estadoLogistica.broker_status.redis_ping ? 'Respondiendo' : 'Sin respuesta' }}</p>
+              </div>
+            </div>
+            <div class="queues-info">
+              <h5>Colas de Mensajes</h5>
+              <div class="queue-list">
+                    <div class="queue-item" *ngFor="let queue of getQueueList()">
+                  <span class="queue-name">{{ queue.name }}</span>
+                  <span class="queue-count">{{ queue.count }} mensajes</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="!estadoLogistica" class="text-center text-muted">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+            <p>Cargando estado del broker...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-card recommendations-card" *ngIf="estadoLogistica && estadoLogistica.recommendations.length > 0">
+        <div class="card-header">
+          <h3><i class="fas fa-lightbulb"></i> Recomendaciones</h3>
+        </div>
+        <div class="card-body">
+          <div class="recommendations-list">
+            <div class="recommendation-item" *ngFor="let recommendation of estadoLogistica.recommendations">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>{{ recommendation }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="history-section">
+      <div class="dashboard-card history-card">
+        <div class="card-header">
+          <h3><i class="fas fa-history"></i> Historial de Pings ({{ historialPings.length }})</h3>
+          <button class="btn btn-clear" (click)="limpiarHistorial()">
+            <i class="fas fa-trash"></i> Limpiar
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="history-timeline" *ngIf="historialPings.length > 0">
+            <div class="timeline-item" 
+                 *ngFor="let ping of historialPings" 
+                 [ngClass]="getTimelineItemClass(ping.status)">
+              <div class="timeline-marker" [ngClass]="getTimelineItemClass(ping.status)">
+                <i [class]="getStatusIcon(ping.status)"></i>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <span class="timeline-time">{{ ping.timestamp }}</span>
+                  <span class="timeline-status badge" [ngClass]="getTimelineItemClass(ping.status)">
+                    {{ ping.status }}
+                  </span>
+                </div>
+                <div class="timeline-details">
+                  <div class="timeline-message">{{ ping.message }}</div>
+                  <div class="timeline-metrics">
+                    Tiempo: {{ ping.response_time_ms }}ms | HTTP: {{ ping.http_status }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="no-history" *ngIf="historialPings.length === 0">
+            <i class="fas fa-history"></i>
+            <p>No hay historial de pings aún</p>
+            <small>Los pings automáticos aparecerán aquí</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

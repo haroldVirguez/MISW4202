@@ -110,38 +110,38 @@ def ping_logistica():
     """Ping echo al microservicio de Logística e Inventarios"""
     try:
         start_time = time.time()
-        logistica_url = "http://m-logistica-inventario:5002/health"
         
-        response = requests.get(logistica_url, timeout=2)
+        health_url = "http://m-logistica-inventario:5002/health"
+        health_response = requests.get(health_url, timeout=1)
+        
         end_time = time.time()
+        response_time = round((end_time - start_time) * 1000, 2)
         
-        response_time = round((end_time - start_time) * 1000, 2)  
-        
-        if response.status_code == 200:
+        if health_response.status_code == 200:
             status = "healthy"
-            message = "Ping exitoso"
+            message = "Servicio de logística funcionando correctamente"
         else:
             status = "degraded"
-            message = f"Respuesta inesperada: {response.status_code}"
+            message = f"Servicio de logística con problemas - código {health_response.status_code}"
             
         return jsonify({
             'target_service': 'logistica_inventario',
             'status': status,
             'message': message,
             'response_time_ms': response_time,
-            'http_status': response.status_code,
-            'timestamp': datetime.now().isoformat(),
-            'ping_successful': True
+            'http_status': health_response.status_code,
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
+            'ping_successful': health_response.status_code == 200
         })
         
     except requests.exceptions.Timeout:
         return jsonify({
             'target_service': 'logistica_inventario',
             'status': 'timeout',
-            'message': 'Timeout: El servicio no respondió en 2 segundos',
+            'message': 'Timeout en confirmación de entrega - sistema enmascarando falla y procesando asíncronamente en Broker de mensajería',
             'response_time_ms': 2000,
             'http_status': None,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
             'ping_successful': False
         }), 408
         
@@ -149,10 +149,10 @@ def ping_logistica():
         return jsonify({
             'target_service': 'logistica_inventario',
             'status': 'unreachable',
-            'message': 'Error de conexión: El servicio no está disponible',
+            'message': 'Error de conexión al microservicio de logística - sistema enmascarando falla y procesando asíncronamente en Broker de mensajería',
             'response_time_ms': None,
             'http_status': None,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
             'ping_successful': False
         }), 503
         
@@ -163,7 +163,7 @@ def ping_logistica():
             'message': f'Error inesperado: {str(e)}',
             'response_time_ms': None,
             'http_status': None,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
             'ping_successful': False
         }), 500
 

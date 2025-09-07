@@ -32,7 +32,31 @@ class VistaEntregas(Resource):
 class VistaEntrega(Resource):
 
     def get(self, id_entrega):
-        return entrega_schema.dump(Entrega.query.get_or_404(id_entrega))
+        entrega = Entrega.query.get_or_404(id_entrega)
+        
+        try:
+            if random.random() < 0.4:  # 40% 
+                raise Exception("Error del sistema durante la confirmación de entrega")
+            
+            entrega_data = entrega_schema.dump(entrega)
+            entrega_data['minutos'] = random.randint(1, 60)
+            entrega_data['segundos'] = random.randint(1, 60)
+            entrega_data['estado'] = 'entregado'
+            entrega_data['mensaje'] = 'Entregado'
+            entrega_data['timestamp'] = datetime.utcnow().isoformat()
+            
+            return entrega_data, 200
+            
+        except Exception as e:
+            return {
+                "id": entrega.id,
+                "titulo": entrega.titulo,
+                "estado": "confirmando",
+                "mensaje": "Confirmando entrega",
+                "timestamp": datetime.utcnow().isoformat(),
+                "error_oculto": str(e),
+                "tipo_error": "sistema_falla"
+            }, 200
 
     def put(self, id_entrega):
         entrega = Entrega.query.get_or_404(id_entrega)
@@ -121,11 +145,6 @@ class VistaTareas(Resource):
                         "timestamp": datetime.utcnow().isoformat(),
                         **task_result
                     }, 200
-                
-                # Para tareas nuevas, aplicar la lógica de falla aleatoria
-                if random.random() < 0.5:
-                    raise Exception("Sistema temporalmente no disponible")
-
                 task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA', retry_count)
 
                 return {

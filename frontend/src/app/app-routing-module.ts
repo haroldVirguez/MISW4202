@@ -4,8 +4,7 @@ import { EntregasComponent } from './entregas/entregas.component';
 import { MonitorComponent } from './monitor/monitor.component';
 
 const routes: Routes = [
-  { path: '', redirectTo: '/entregas', pathMatch: 'full' },
-  { path: 'entregas', component: EntregasComponent },
+  { path: '', redirectTo: '/monitor', pathMatch: 'full' },
   { path: 'monitor', component: MonitorComponent }
 ];
 

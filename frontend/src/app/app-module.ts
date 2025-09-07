@@ -4,7 +4,6 @@ import { HttpClientModule } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
-import { EntregasModule } from './entregas/entregas.module'; 
 import { MonitorModule } from './monitor/monitor.module';
 
 @NgModule({
@@ -14,7 +13,6 @@ import { MonitorModule } from './monitor/monitor.module';
   imports: [
     BrowserModule,
     AppRoutingModule,
-    EntregasModule,
     MonitorModule,
     HttpClientModule,
   ],
