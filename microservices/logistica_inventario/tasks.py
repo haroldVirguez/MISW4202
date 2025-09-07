@@ -60,7 +60,7 @@ def _retry_task_via_api(entrega_id, current_retry=0, max_retries=3):
         
         if response.status_code in [200, 202]:
             result = response.json()
-            print(f"✅ [LOGISTICA] Reintento exitoso para entrega {entrega_id}")
+            print(f"✅ [LOGISTICA] Reintento enviado para entrega {entrega_id}")
             return {
                 'entrega_id': entrega_id,
                 'status': 'RETRY_SUBMITTED',
@@ -83,43 +83,27 @@ def procesar_entrega_impl(entrega_id, status, _retry_count=0):
     print(f"🚚 [LOGISTICA] Procesando entrega {entrega_id} con estado {status} (retry: {_retry_count})")
     time.sleep(2)  # Simular trabajo
     
-    # Simular falla del sistema con probabilidad
-    system_available = random.random() > 0.3  # 70% de éxito
-    
-    if not system_available and status != 'PENDING_SYSTEM_CONFIRMATION':
+    if status == 'PENDING_SYSTEM_CONFIRMATION':
         print(f"⚠️ [LOGISTICA] Sistema no disponible para entrega {entrega_id}")
-        
-        # Si es el primer intento, marcar como pendiente y realizar retry automático
-        if _retry_count == 0:
-            result = {
-                'entrega_id': entrega_id,
-                'status': 'PENDING_SYSTEM_CONFIRMATION',
-                'timestamp': datetime.now().isoformat(),
-                'worker': 'logistica_worker',
-                'retry_count': _retry_count,
-                'message': 'Sistema temporalmente no disponible, reintentando automáticamente...'
+        result = {
+            'entrega_id': entrega_id,
+            'status': 'PENDING_SYSTEM_CONFIRMATION',
+            'timestamp': datetime.now().isoformat(),
+            'worker': 'logistica_worker',
+            'retry_count': _retry_count,
+            'message': 'Sistema temporalmente no disponible, reintentando automáticamente...'
             }
             
             # Realizar retry automático en background
-            retry_result = _retry_task_via_api(entrega_id, _retry_count)
-            result['retry_info'] = retry_result
-            
-            return result
-        else:
-            # En reintentos, devolver error si sigue fallando
-            return {
-                'entrega_id': entrega_id,
-                'status': 'FAILED_RETRY',
-                'timestamp': datetime.now().isoformat(),
-                'worker': 'logistica_worker',
-                'retry_count': _retry_count,
-                'error': 'Sistema sigue no disponible después de reintento'
-            }
+        retry_result = _retry_task_via_api(entrega_id, _retry_count)
+        result['retry_info'] = retry_result
+        # En reintentos, devolver error si sigue fallando
+        return result
     
     # Procesamiento exitoso
     result = {
         'entrega_id': entrega_id,
-        'status': 'ENTREGADA' if system_available else status,
+        'status': 'ENTREGADA',  
         'timestamp': datetime.now().isoformat(),
         'worker': 'logistica_worker',
         'retry_count': _retry_count,
