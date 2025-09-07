@@ -145,6 +145,11 @@ class VistaTareas(Resource):
                         "timestamp": datetime.utcnow().isoformat(),
                         **task_result
                     }, 200
+                
+                # Para tareas nuevas, aplicar la lógica de falla aleatoria
+                if random.random() < 0.5:
+                    raise Exception("Sistema temporalmente no disponible")
+                
                 task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA', retry_count)
 
                 return {
