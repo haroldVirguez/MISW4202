@@ -19,6 +19,11 @@ COPY . .
 # Crear directorio para la base de datos
 RUN mkdir -p /data
 
+RUN apt-get update && apt-get install -y wget curl
+
+COPY docker-entrypoint-security.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint-security.sh
+
 # Hacer los entry points ejecutables
 RUN chmod +x entrypoints/entrypoint_*.py
 
