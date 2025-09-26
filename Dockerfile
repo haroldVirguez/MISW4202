@@ -5,6 +5,8 @@ WORKDIR /app
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     gcc \
+    wget \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements
@@ -18,8 +20,6 @@ COPY . .
 
 # Crear directorio para la base de datos
 RUN mkdir -p /data
-
-RUN apt-get update && apt-get install -y wget curl
 
 COPY docker-entrypoint-security.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint-security.sh
