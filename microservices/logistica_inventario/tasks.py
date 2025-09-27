@@ -2,6 +2,7 @@
 Definición de tareas de logística que serán auto-descubiertas por el worker
 """
 from functools import wraps
+import os
 import time
 import random
 import requests
@@ -69,7 +70,7 @@ def _retry_task_via_api(entrega_id, current_retry=0, max_retries=3):
             api_url,
             json=payload,
             timeout=10,
-            headers={'Content-Type': 'application/json'}
+            headers={'Content-Type': 'application/json', 'api-key': os.getenv('API_KEY', 'secret')} 
         )
         
         if response.status_code in [200, 202]:

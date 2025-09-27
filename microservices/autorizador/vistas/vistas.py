@@ -1,6 +1,6 @@
 from flask import request
 
-from scripts.crypto import compare_password, hash_password
+from scripts.utils import compare_password, hash_password
 from ..modelos import db, Usuario, UsuarioSchema
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
