@@ -1,4 +1,8 @@
 from typing import Literal, Optional, Tuple
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 MS_CALLERS_MAP = {
     "autorizador": "http://m-autorizador:5003",
@@ -24,7 +28,8 @@ def call_ms(
         return {"error": f"Microservicio no encontrado: {name}"}, 404
 
     url = f"{base_url}{resource}"
-
+    logger.info(f"Llamando a {url} con método {method.upper()}")
+    
     try:
         if method.lower() == "get":
             response = requests.get(url, params=params, headers=headers)
@@ -35,13 +40,18 @@ def call_ms(
         elif method.lower() == "delete":
             response = requests.delete(url, headers=headers)
         else:
+            logger.warning(f"Método HTTP no soportado: {method}")
             return {"error": f"Método HTTP no soportado: {method}"}, 400
-
+        
+        logger.info(f"Respuesta recibida: {response.status_code}")
+        
+        logger.info(f"Cuerpo de la respuesta: {response.json()}")
+        
         response.raise_for_status()  # Lanza un error para códigos de estado 4xx/5xx
         return {"data": response.json() }, response.status_code
     except RequestException as e:
-        print(f"Error llamando al microservicio {name}: {e}")
+        logger.error(f"Error llamando al microservicio {name}: {e}")
         return {"error": str(e)}, 500
     except ValueError as ve:
-        print(f"Error de valor: {ve}")
+        logger.error(f"Error de valor: {ve}")
         return {"error": str(ve)}, 400

@@ -13,6 +13,10 @@ from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import get_jwt, jwt_required, create_access_token
 from datetime import datetime
 import random
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 usuario_schema = UsuarioSchema()
 
@@ -115,9 +119,7 @@ class VistaSignatureVal(Resource):
             return {"error": "payload es requerido"}, 400
         if not firma:
             return {"error": "firma es requerida"}, 400
-        print(data)
-        print(payload)
-        print(firma)
+        
         es_valida = validate_signature(
             secret_key=current_app.config['PRIVATE_KEY'], data=payload, signature=firma
         )

@@ -11,6 +11,10 @@ from datetime import datetime
 from celery.result import AsyncResult
 from .client import flask_celery
 from .task_registry import list_available_tasks,  get_task_info, validate_task_params
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class TaskDispatcher:
     """
@@ -20,7 +24,7 @@ class TaskDispatcher:
     
     def __init__(self):
         self.celery = flask_celery
-        print("✓ TaskDispatcher configurado con flask_celery")
+        logger.info("✓ TaskDispatcher configurado con flask_celery")
     
     def dispatch_task(self, task_name: str, *args, **kwargs) -> Dict[str, Any]:
         """
@@ -137,6 +141,7 @@ class TaskDispatcher:
     
     def list_tasks_from_redis(self) -> list:
         """Lista todas las tareas: activas, pendientes, reservadas y completadas"""
+        logger.info("Listando tareas desde Redis backend")
         if not self.celery:
             return []
         
@@ -173,10 +178,10 @@ class TaskDispatcher:
                         task['state'] = 'RESERVED'
                         all_tasks.append(task)
             
-            print(f"Tareas activas/pendientes/reservadas encontradas: {len(all_tasks)}")
+            logger.info(f"Tareas activas/pendientes/reservadas encontradas: {len(all_tasks)}")
             
         except Exception as e:
-            print(f"Error obteniendo tareas activas: {e}")
+            logger.error(f"Error obteniendo tareas activas: {e}")
         
         try:
             # 2. Obtener tareas completadas desde el backend de resultados
@@ -186,7 +191,7 @@ class TaskDispatcher:
                 # Para Redis backend
                 try:
                     keys = backend.client.keys('celery-task-meta-*')
-                    print(f"Claves encontradas en Redis backend: {len(keys)}")
+                    logger.info(f"Claves encontradas en Redis backend: {len(keys)}")
                     
                     for key in keys[:100]:  # Limitar a 100 para evitar sobrecarga
                         try:
@@ -237,19 +242,19 @@ class TaskDispatcher:
                                     })
                                     
                         except Exception as task_error:
-                            print(f"Error procesando tarea {task_id}: {task_error}")
+                            logger.error(f"Error procesando tarea {task_id}: {task_error}")
                             continue
                             
                 except Exception as redis_error:
-                    print(f"Error accediendo a Redis backend: {redis_error}")
-                    
+                    logger.error(f"Error accediendo a Redis backend: {redis_error}")
+
             else:
-                print("Backend no es Redis o no tiene cliente disponible")
+                logger.warning("Backend no es Redis o no tiene cliente disponible")
                 
         except Exception as e:
-            print(f"Error obteniendo tareas completadas: {e}")
+            logger.error(f"Error obteniendo tareas completadas: {e}")
         
-        print(f"Total de tareas encontradas: {len(all_tasks)}")
+        logger.info(f"Total de tareas encontradas: {len(all_tasks)}")
         return all_tasks
     
 # Instancia global del dispatcher
@@ -260,13 +265,13 @@ class LogisticaTasks:
     """Wrapper para tareas de logística sin importar código directo"""
     
     @staticmethod
-    def procesar_entrega(entrega_id: int, status: str, retry_count: int = 0, confirmacion_info: dict = None, **options):
+    def procesar_entrega(entrega_id: int, status: str, retry_count: int = 0, confirmacion_info: dict = {}, **options):
         return task_dispatcher.dispatch_task(
             'logistica.procesar_entrega',
             entrega_id,
             status,
             retry_count,
-            confirmacion_info=confirmacion_info,
+            confirmacion_info,
             **options
         )
     

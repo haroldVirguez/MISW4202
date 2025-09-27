@@ -1,9 +1,12 @@
 from datetime import datetime
+import os
 import random
 from celery_app.dispatcher import LogisticaTasks
 from microservices.callers.m_callers import call_ms
-from scripts.utils import validate_signature
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def sync_procesar_entrega(entrega_id, retry_count=0, confirmacion_info=None):
     """
@@ -20,7 +23,7 @@ def sync_procesar_entrega(entrega_id, retry_count=0, confirmacion_info=None):
 
     (response, status_code) = call_ms(
         "autorizador",
-        "/validate_signature",
+        "/validate-signature",
         method="post",
         data={
             "payload": {
@@ -32,12 +35,13 @@ def sync_procesar_entrega(entrega_id, retry_count=0, confirmacion_info=None):
             },
             "firma": confirmacion_info.get("firma_payload"),
         },
+        headers={"Content-Type": "application/json", "i-api-key": os.getenv("API_KEY")},
     )
     
     is_valid = response.get("data", {}).get("firma_valida") if status_code == 200 else False
     
     if not is_valid:
-        return {"error": "Firma no válida o error en autorización"}, 403
+        return {"error": "Firma no válida"}, 403
     
     try:
 
