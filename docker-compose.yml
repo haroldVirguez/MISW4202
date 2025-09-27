@@ -9,13 +9,20 @@ services:
       - redis_data:/data
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # Microservicio de Logística/Inventario
   m-logistica-inventario:
     build:
-      context: .
+      context: ../../AppData/Local/Temp
       dockerfile: Dockerfile
     container_name: m-logistica-inventario
+    entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
     command: python entrypoints/entrypoint_logistica.py
     # Puerto interno - Solo accesible via API Gateway
     expose:
@@ -28,6 +35,11 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - JWT_SECRET_KEY=frase-secreta
+      - JWT_ISSUER=${JWT_ISSUER}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+      - JWKS_URL=${JWKS_URL}
+      - JWKS_PATH=${JWKS_PATH}
+      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
       - sqlite_data:/data
       - .:/app
@@ -35,13 +47,15 @@ services:
       - redis
     networks:
       - app-network
+    restart: unless-stopped
 
   # Microservicio Monitor
   m-monitor:
     build:
-      context: .
+      context: ../../AppData/Local/Temp
       dockerfile: Dockerfile
     container_name: m-monitor
+    entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
     command: python entrypoints/entrypoint_monitor.py
     # Puerto interno - Solo accesible via API Gateway
     expose:
@@ -54,6 +68,11 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - JWT_ISSUER=${JWT_ISSUER}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+      - JWKS_URL=${JWKS_URL}
+      - JWKS_PATH=${JWKS_PATH}
+      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
       - sqlite_data:/data
       - .:/app
@@ -62,18 +81,55 @@ services:
       - m-logistica-inventario
     networks:
       - app-network
+    restart: unless-stopped
+
+  # Microservicio Autorizador/Certificador
+  m-autorizador:
+    build:
+      context: ../../AppData/Local/Temp
+      dockerfile: Dockerfile
+    container_name: m-autorizador
+    entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
+    command: python entrypoints/entrypoint_autorizador.py
+    expose:
+      - "5003"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5003
+      - SQLALCHEMY_DATABASE_URI=sqlite:////data/misw4202.db
+      - JWT_SECRET_KEY=frase-secreta
+      - JWT_ISSUER=${JWT_ISSUER}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+      - JWKS_URL=${JWKS_URL}
+      - JWKS_PATH=${JWKS_PATH}
+      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
+    volumes:
+      - sqlite_data:/data
+      - .:/app
+    depends_on:
+      - redis
+    networks:
+      - app-network
+    restart: unless-stopped
 
   # Worker de Celery
   celery-worker:
     build:
-      context: .
+      context: ../../AppData/Local/Temp
       dockerfile: Dockerfile
     container_name: celery-worker
+    entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
     command: celery -A celery_app.worker.worker_celery worker --loglevel=info -Q celery,logistica,monitor --logfile=/var/log/celery/worker.log
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SQLALCHEMY_DATABASE_URI=sqlite:////data/misw4202.db
+      - JWT_ISSUER=${JWT_ISSUER}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+      - JWKS_URL=${JWKS_URL}
+      - JWKS_PATH=${JWKS_PATH}
+      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
       - sqlite_data:/data
       - .:/app
@@ -83,11 +139,12 @@ services:
       - m-logistica-inventario
     networks:
       - app-network
+    restart: unless-stopped
 
   # Monitor de Celery (Flower)
   celery-flower:
     build:
-      context: .
+      context: ../../AppData/Local/Temp
       dockerfile: Dockerfile
     container_name: celery-flower
     command: celery -A celery_app.worker.worker_celery flower --port=5555
@@ -102,6 +159,12 @@ services:
       - celery-worker
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5555/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   # Frontend Angular + API Gateway (nginx)
   frontend:
@@ -113,6 +176,7 @@ services:
       - "4200:80"  # Frontend - Solo archivos estáticos
     networks:
       - app-network
+    restart: unless-stopped
 
   # API Gateway dedicado
   api-gateway:
@@ -125,8 +189,15 @@ services:
     depends_on:
       - m-logistica-inventario
       - m-monitor
+      - m-autorizador
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/health >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     
 
 volumes:

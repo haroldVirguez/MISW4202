@@ -2,7 +2,7 @@
 .git
 .gitignore
 README.md
-.env.example
+.env
 .venv/
 instance/
 **/__pycache__/
