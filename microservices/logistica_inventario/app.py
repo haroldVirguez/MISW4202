@@ -1,6 +1,5 @@
 import sys
 import os
-
 # Agregar el directorio raíz al PYTHONPATH
 sys.path.insert(0, '/app')
 
@@ -13,7 +12,7 @@ from shared import create_app, add_health_check
 
 # Importar modelos y vistas locales
 from .modelos import db
-from .vistas import VistaEntregas, VistaEntrega, VistaSignIn, VistaLogIn, VistaTareas, VistaTareaDetail
+from .vistas import VistaEntregas, VistaEntrega, VistaTareas, VistaTareaDetail,  VistaConfirmarEntrega
 
 # Crear la aplicación usando la configuración compartida
 app = create_app(service_name='logistica_inventario')
@@ -29,8 +28,7 @@ with app.app_context():
 api = Api(app)
 api.add_resource(VistaEntregas, '/entregas')
 api.add_resource(VistaEntrega, '/entrega/<int:id_entrega>')
-api.add_resource(VistaSignIn, '/signin', '/signin/<int:id_usuario>')
-api.add_resource(VistaLogIn, '/login')
+api.add_resource(VistaConfirmarEntrega, '/entrega/<int:id_entrega>/confirmar')
 api.add_resource(VistaTareaDetail, '/tarea', '/tarea/<string:task_id>')
 api.add_resource(VistaTareas, '/tareas')
 

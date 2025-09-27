@@ -17,11 +17,11 @@ export class EntregasService {
   }
 
   procesarEntrega(entregaId: number): Observable<any> {
-    const body = {
-      tipo: 'procesar_entrega',
-      entrega_id: entregaId
-    };
-    
-    return this.http.post(`${this.apiUrl}/api/v1/logistica/tareas`, body);
+    const body = {};
+
+    return this.http.post(
+      `${this.apiUrl}/api/v1/logistica/${entregaId}/confirmar`,
+      body
+    );
   }
 }

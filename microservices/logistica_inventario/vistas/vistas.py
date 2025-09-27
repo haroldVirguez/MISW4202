@@ -1,5 +1,7 @@
 from flask import request
-from ..modelos import db, Entrega, EntregaSchema, Usuario, UsuarioSchema
+
+from ..vistas.services import sync_procesar_entrega
+from ..modelos import db, Entrega, EntregaSchema
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import jwt_required, create_access_token
@@ -9,7 +11,6 @@ from celery_app.dispatcher import LogisticaTasks, MonitorTasks, task_dispatcher
 
 # Importar celery desde la configuración global
 entrega_schema = EntregaSchema()
-usuario_schema = UsuarioSchema()
 
 
 
@@ -17,10 +18,9 @@ class VistaEntregas(Resource):
 
     def post(self):
         nueva_entrega = Entrega(
-            titulo=request.json["titulo"], 
-            minutos=request.json["minutos"], 
-            segundos=request.json["segundos"], 
-            interprete=request.json["interprete"]
+            direccion=request.json["direccion"], 
+            estado=request.json["estado"], 
+            pedido_id=request.json["pedido_id"]
         )
         db.session.add(nueva_entrega)
         db.session.commit()
@@ -32,82 +32,22 @@ class VistaEntregas(Resource):
 class VistaEntrega(Resource):
 
     def get(self, id_entrega):
-        entrega = Entrega.query.get_or_404(id_entrega)
-        
-        try:
-            if random.random() < 0.4:  # 40% 
-                raise Exception("Error del sistema durante la confirmación de entrega")
-            
-            entrega_data = entrega_schema.dump(entrega)
-            entrega_data['minutos'] = random.randint(1, 60)
-            entrega_data['segundos'] = random.randint(1, 60)
-            entrega_data['estado'] = 'entregado'
-            entrega_data['mensaje'] = 'Entregado'
-            entrega_data['timestamp'] = datetime.utcnow().isoformat()
-            
-            return entrega_data, 200
-            
-        except Exception as e:
-            return {
-                "id": entrega.id,
-                "titulo": entrega.titulo,
-                "estado": "confirmando",
-                "mensaje": "Confirmando entrega",
-                "timestamp": datetime.utcnow().isoformat(),
-                "error_oculto": str(e),
-                "tipo_error": "sistema_falla"
-            }, 200
-
-    def put(self, id_entrega):
-        entrega = Entrega.query.get_or_404(id_entrega)
-        entrega.titulo = request.json.get("titulo",entrega.titulo)
-        entrega.minutos = request.json.get("minutos",entrega.minutos)
-        entrega.segundos = request.json.get("segundos",entrega.segundos)
-        entrega.interprete = request.json.get("interprete",entrega.interprete)
-        db.session.commit()
+        entrega = Entrega.query.get(id_entrega)
+        if not entrega:
+            return {"mensaje": "Entrega no encontrada"}, 404
         return entrega_schema.dump(entrega)
 
-    def delete(self, id_entrega):
-        entrega = Entrega.query.get_or_404(id_entrega)
-        db.session.delete(entrega)
-        db.session.commit()
-        return 'Operación exitosa',204
+class VistaConfirmarEntrega(Resource):
+    """
+    Endpoint para confirmar la entrega de un paquete
+    """
+    @jwt_required()
+    def post(self, id_entrega):
 
-class VistaLogIn(Resource):
-
-    def post(self):
-            u_nombre = request.json["nombre"]
-            u_contrasena = request.json["contrasena"]
-            usuario = Usuario.query.filter_by(nombre=u_nombre, contrasena = u_contrasena).all()
-            if usuario:
-                
-                token_de_acceso = create_access_token(identity=u_nombre)
-                return {'mensaje':'Inicio de sesión exitoso', 'token': token_de_acceso}, 200
-            else:
-                return {'mensaje':'Nombre de usuario o contraseña incorrectos'}, 401
-
-
-class VistaSignIn(Resource):
-    
-    def post(self):
-        nuevo_usuario = Usuario(nombre=request.json["nombre"], contrasena=request.json["contrasena"])
-        token_de_acceso = create_access_token(identity=request.json["nombre"])
-        db.session.add(nuevo_usuario)
-        db.session.commit()
-        return {'mensaje': 'Usuario creado exitosamente', 'token': token_de_acceso}
-
-    def put(self, id_usuario):
-        usuario = Usuario.query.get_or_404(id_usuario)
-        usuario.contrasena = request.json.get("contrasena",usuario.contrasena)
-        db.session.commit()
-        return usuario_schema.dump(usuario)
-
-    def delete(self, id_usuario):
-        usuario = Usuario.query.get_or_404(id_usuario)
-        db.session.delete(usuario)
-        db.session.commit()
-        return '',204
-
+        data = request.get_json()
+        if not data:
+            return {"error": "Body JSON requerido"}, 400
+        return sync_procesar_entrega(id_entrega)
 
 class VistaTareas(Resource):
     """
@@ -130,45 +70,7 @@ class VistaTareas(Resource):
             entrega_id = data.get("entrega_id")
             retry_count = data.get("_retry_count", 0)  # Parámetro interno para reintentos
             
-            if not entrega_id:
-                return {"error": "entrega_id es requerido"}, 400
-            
-            try:
-                # Si es un reintento (retry_count > 0), procesar directamente
-                if retry_count > 0:
-                    task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA', retry_count)
-                    return {
-                        "message": "Tarea de reintento enviada",
-                        "entrega_id": entrega_id,
-                        "estado": "reintento",
-                        "retry_count": retry_count,
-                        "timestamp": datetime.utcnow().isoformat(),
-                        **task_result
-                    }, 200
-                
-                # Para tareas nuevas, aplicar la lógica de falla aleatoria
-                if random.random() < 0.5:
-                    raise Exception("Sistema temporalmente no disponible")
-                
-                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'ENTREGADA', retry_count)
-
-                return {
-                    "message": "Tarea enviada",
-                    "entrega_id": entrega_id,
-                    "estado": "exitoso",
-                    "timestamp": datetime.utcnow().isoformat(),
-                    **task_result
-                }, 200
-                
-            except Exception as e:
-                task_result = LogisticaTasks.procesar_entrega(entrega_id, 'PENDING_SYSTEM_CONFIRMATION', retry_count)
-                return {
-                    "message": "Tarea enviada",
-                    "entrega_id": entrega_id,
-                    "estado": "Pendiente Confirmacion Sistema",
-                    "timestamp": datetime.utcnow().isoformat(),
-                    **task_result
-                }, 200
+            return sync_procesar_entrega(entrega_id, retry_count)
             
         elif tipo_tarea == "validar_inventario":
             producto_id = data.get("producto_id")

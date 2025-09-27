@@ -26,7 +26,7 @@ export class EntregasComponent implements OnInit {
     this.procesando = true;
     this.mensaje = 'Enviando petición de procesamiento...';
     
-    const entregaId = Math.floor(Math.random() * 1000) + 1;
+    const entregaId = 1;
     
     this.entregasService.procesarEntrega(entregaId).subscribe({
       next: (response) => {
