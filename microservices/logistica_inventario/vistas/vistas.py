@@ -4,7 +4,7 @@ from ..vistas.services import sync_procesar_entrega
 from ..modelos import db, Entrega, EntregaSchema
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
-from flask_jwt_extended import jwt_required, create_access_token
+from flask_jwt_extended import get_jwt, jwt_required, create_access_token
 from datetime import datetime
 import random
 from celery_app.dispatcher import LogisticaTasks, MonitorTasks, task_dispatcher
@@ -53,12 +53,16 @@ class VistaTareas(Resource):
     """
     Endpoints para enviar y consultar tareas asíncronas usando el nuevo dispatcher
     """
-    
+    @jwt_required()
     def post(self):
         """
         Envía una tarea asíncrona usando el dispatcher desacoplado
         """
         # Importar el dispatcher limpio
+        jwt_data = get_jwt()
+        roles = jwt_data.get("roles", "").split(",")
+        if 'Admin' not in roles or 'System' not in roles:
+            return {"error": "No tiene permisos para realizar esta acción"}, 403
         
         data = request.get_json()
         if not data:

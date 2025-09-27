@@ -9,6 +9,7 @@ class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(50))
     contrasena = db.Column(db.String(300))
+    roles = db.Column(db.String(200))  # Roles separados por comas
 
 
 class UsuarioSchema(SQLAlchemyAutoSchema):

@@ -23,7 +23,11 @@ class VistaLogIn(Resource):
         
         if compare_password(usuario.contrasena, u_contrasena):
 
-            token_de_acceso = create_access_token(identity=u_nombre)
+            token_de_acceso = create_access_token(identity={
+                "nombre": usuario.nombre,
+                "id": usuario.id,
+                "roles": usuario.roles
+            })
             return {
                 "mensaje": "Inicio de sesión exitoso",
                 "token": token_de_acceso,
@@ -41,10 +45,12 @@ class VistaSignUp(Resource):
         nuevo_usuario = Usuario(
             nombre=request.json["nombre"],
             contrasena=hash_password(request.json["contrasena"]),
-        )
-        token_de_acceso = create_access_token(
-            identity={"nombre": nuevo_usuario.nombre, "id": nuevo_usuario.id}
+            roles='usuario'  # Asignar rol por defecto
         )
         db.session.add(nuevo_usuario)
         db.session.commit()
+        
+        token_de_acceso = create_access_token(
+            identity={"nombre": nuevo_usuario.nombre, "id": nuevo_usuario.id, "roles": nuevo_usuario.roles}
+        )
         return {"mensaje": "Usuario creado exitosamente", "token": token_de_acceso}
