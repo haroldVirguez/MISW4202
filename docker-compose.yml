@@ -27,18 +27,9 @@ services:
     # Puerto interno - Solo accesible via API Gateway
     expose:
       - "5002"
+    env_file: .env
     environment:
-      - FLASK_ENV=development
-      - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5002
-      - SQLALCHEMY_DATABASE_URI=sqlite:////data/misw4202.db
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - JWT_SECRET_KEY=frase-secreta
-      - JWT_ISSUER=${JWT_ISSUER}
-      - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_PATH=${JWKS_PATH}
-      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
       - sqlite_data:/data
       - .:/app
@@ -59,18 +50,9 @@ services:
     # Puerto interno - Solo accesible via API Gateway
     expose:
       - "5001"
+    env_file: .env
     environment:
-      - FLASK_ENV=development
-      - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5001
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - JWT_ISSUER=${JWT_ISSUER}
-      - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_PATH=${JWKS_PATH}
-      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
       - sqlite_data:/data
       - .:/app
@@ -91,16 +73,9 @@ services:
     command: python entrypoints/entrypoint_autorizador.py
     expose:
       - "5003"
+    env_file: .env
     environment:
-      - FLASK_ENV=development
-      - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5003
-      - SQLALCHEMY_DATABASE_URI=sqlite:////data/misw4202.db
-      - JWT_SECRET_KEY=frase-secreta
-      - JWT_ISSUER=${JWT_ISSUER}
-      - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_PATH=${JWKS_PATH}
-      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
       - sqlite_data:/data
       - .:/app
@@ -118,14 +93,7 @@ services:
     container_name: celery-worker
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
     command: celery -A celery_app.worker.worker_celery worker --loglevel=info -Q celery,logistica,monitor --logfile=/var/log/celery/worker.log
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - SQLALCHEMY_DATABASE_URI=sqlite:////data/misw4202.db
-      - JWT_ISSUER=${JWT_ISSUER}
-      - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_PATH=${JWKS_PATH}
-      - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
+    env_file: .env
     volumes:
       - sqlite_data:/data
       - .:/app
@@ -146,10 +114,7 @@ services:
     command: celery -A celery_app.worker.worker_celery flower --port=5555
     ports:
       - "5555:5555"  # Flower acceso directo
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - FLOWER_UNAUTHENTICATED_API=true
+    env_file: .env
     depends_on:
       - redis
       - celery-worker

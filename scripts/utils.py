@@ -22,9 +22,19 @@ def api_key_required(optional=False, key=None):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            api_key = request.headers.get("api-key")
-            if not optional and (not api_key or api_key != key):
+            loaded_key = key or os.getenv("API_KEY")
+            if not loaded_key:
+                return {"error": "API key no configurada en el servidor"}, 500
+                
+            api_key = request.headers.get("i-api-key")
+            if not optional and not api_key:
                 return {"error": "API key requerida"}, 401
+
+            if api_key and key and api_key != key:
+                return {"error": "API key no válida"}, 403
+
+            g.is_api_key_validated_var = (api_key == key)
+            
             return current_app.ensure_sync(func)(*args, **kwargs)
         
         return wrapper
@@ -40,7 +50,7 @@ def api_require_some_auth():
         @wraps(func)
         def wrapper(*args, **kwargs):
             jwt_header = request.headers.get("Authorization", None)
-            api_key = request.headers.get("api-key", None)
+            api_key = request.headers.get("i-api-key", None)
 
             if not (jwt_header or api_key):
                 return {"error": "Se requiere autenticación válida (JWT o API key)"}, 401
@@ -49,3 +59,9 @@ def api_require_some_auth():
         
         return wrapper
     return decorator
+
+def get_api_key_validation_result():
+    """ 
+    Verifica si la solicitud fue autenticada mediante API key válida.
+    """
+    return g.get('is_api_key_validated_var', False)

@@ -1,7 +1,7 @@
 import os
 from flask import request
 
-from scripts.utils import api_key_required, api_require_some_auth
+from scripts.utils import api_key_required, api_require_some_auth, get_api_key_validation_result
 
 from ..services import sync_procesar_entrega
 from ..modelos import db, Entrega, EntregaSchema
@@ -65,9 +65,10 @@ class VistaTareas(Resource):
         """
         # Importar el dispatcher limpio
         jwt_data = get_jwt()
+        is_api_key = get_api_key_validation_result()
         
         roles = jwt_data.get("roles", "").split(",")
-        if 'Admin' not in roles or 'System' not in roles:
+        if not is_api_key and ('Admin' not in roles or 'System' not in roles):
             return {"error": "No tiene permisos para realizar esta acción"}, 403
         
         data = request.get_json()
