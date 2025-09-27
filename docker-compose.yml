@@ -19,7 +19,7 @@ services:
   # Microservicio de Logística/Inventario
   m-logistica-inventario:
     build:
-      context: ../../AppData/Local/Temp
+      context: .
       dockerfile: Dockerfile
     container_name: m-logistica-inventario
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
@@ -37,7 +37,6 @@ services:
       - JWT_SECRET_KEY=frase-secreta
       - JWT_ISSUER=${JWT_ISSUER}
       - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_URL=${JWKS_URL}
       - JWKS_PATH=${JWKS_PATH}
       - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
@@ -52,7 +51,7 @@ services:
   # Microservicio Monitor
   m-monitor:
     build:
-      context: ../../AppData/Local/Temp
+      context: .
       dockerfile: Dockerfile
     container_name: m-monitor
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
@@ -70,7 +69,6 @@ services:
       - REDIS_PORT=6379
       - JWT_ISSUER=${JWT_ISSUER}
       - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_URL=${JWKS_URL}
       - JWKS_PATH=${JWKS_PATH}
       - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
@@ -86,7 +84,7 @@ services:
   # Microservicio Autorizador/Certificador
   m-autorizador:
     build:
-      context: ../../AppData/Local/Temp
+      context: .
       dockerfile: Dockerfile
     container_name: m-autorizador
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
@@ -101,7 +99,6 @@ services:
       - JWT_SECRET_KEY=frase-secreta
       - JWT_ISSUER=${JWT_ISSUER}
       - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_URL=${JWKS_URL}
       - JWKS_PATH=${JWKS_PATH}
       - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
@@ -116,7 +113,7 @@ services:
   # Worker de Celery
   celery-worker:
     build:
-      context: ../../AppData/Local/Temp
+      context: .
       dockerfile: Dockerfile
     container_name: celery-worker
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
@@ -127,7 +124,6 @@ services:
       - SQLALCHEMY_DATABASE_URI=sqlite:////data/misw4202.db
       - JWT_ISSUER=${JWT_ISSUER}
       - JWT_AUDIENCE=${JWT_AUDIENCE}
-      - JWKS_URL=${JWKS_URL}
       - JWKS_PATH=${JWKS_PATH}
       - SKIP_JWT_VALIDATION=${SKIP_JWT_VALIDATION:-0}
     volumes:
@@ -144,7 +140,7 @@ services:
   # Monitor de Celery (Flower)
   celery-flower:
     build:
-      context: ../../AppData/Local/Temp
+      context: .
       dockerfile: Dockerfile
     container_name: celery-flower
     command: celery -A celery_app.worker.worker_celery flower --port=5555
