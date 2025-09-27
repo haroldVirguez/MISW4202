@@ -1,7 +1,7 @@
 import os
 from flask import request
 
-from scripts.utils import api_key_required, api_require_some_auth, get_api_key_validation_result
+from scripts.utils import api_protect, get_api_protect_validation_result
 
 from ..services import sync_procesar_entrega
 from ..modelos import db, Entrega, EntregaSchema
@@ -47,30 +47,48 @@ class VistaConfirmarEntrega(Resource):
     @jwt_required()
     def post(self, id_entrega):
 
+        jwt_info = get_jwt()
+        usuario_id = jwt_info.get("sub")['id']
         data = request.get_json()
+        direccion = data.get("direccion")
+        nombre_recibe = data.get("nombre_recibe")
+        firma_recibe = data.get("firma_recibe")  # Asumimos que es una cadena base64
+        firma_payload = data.get("firma_payload")  # Payload original que se firmó
+        pedido_id = data.get("pedido_id")
+        
+        
         if not data:
             return {"error": "Body JSON requerido"}, 400
-        return sync_procesar_entrega(id_entrega)
+        if not direccion:
+            return {"error": "direccion es requerida"}, 400
+        if not nombre_recibe:
+            return {"error": "nombre_recibe es requerido"}, 400
+        if not firma_recibe:
+            return {"error": "firma_recibe es requerida"}, 400
+
+        return sync_procesar_entrega(id_entrega, 0, confirmacion_info={
+            "direccion": direccion,
+            "nombre_recibe": nombre_recibe,
+            "firma_recibe": firma_recibe,
+            "firma_payload": firma_payload,
+            "pedido_id": pedido_id,
+            "usuario_id": usuario_id
+        })
 
 class VistaTareas(Resource):
     """
     Endpoints para enviar y consultar tareas asíncronas usando el nuevo dispatcher
     """
-    @api_require_some_auth()
-    @api_key_required(optional=True, key=os.getenv("API_KEY"))
-    @jwt_required(optional=True)
+    @api_protect({
+        'jwt_required': False,
+        'api_key_required': False,
+        'roles_required': ['Admin', 'System']
+    })
     def post(self):
         """
         Envía una tarea asíncrona usando el dispatcher desacoplado
         """
-        # Importar el dispatcher limpio
-        jwt_data = get_jwt()
-        is_api_key = get_api_key_validation_result()
-        
-        roles = jwt_data.get("roles", "").split(",")
-        if not is_api_key and ('Admin' not in roles or 'System' not in roles):
-            return {"error": "No tiene permisos para realizar esta acción"}, 403
-        
+
         data = request.get_json()
         if not data:
             return {"error": "Body JSON requerido"}, 400
@@ -80,9 +98,10 @@ class VistaTareas(Resource):
         if tipo_tarea == "procesar_entrega":
             entrega_id = data.get("entrega_id")
             retry_count = data.get("_retry_count", 0)  # Parámetro interno para reintentos
-            
-            return sync_procesar_entrega(entrega_id, retry_count)
-            
+            confirmacion_info = data.get("confirmacion_info", None)
+
+            return sync_procesar_entrega(entrega_id, retry_count, confirmacion_info)
+
         elif tipo_tarea == "validar_inventario":
             producto_id = data.get("producto_id")
             cantidad = data.get("cantidad")

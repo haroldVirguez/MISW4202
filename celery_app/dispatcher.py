@@ -260,12 +260,13 @@ class LogisticaTasks:
     """Wrapper para tareas de logística sin importar código directo"""
     
     @staticmethod
-    def procesar_entrega(entrega_id: int, status: str, retry_count: int = 0, **options):
+    def procesar_entrega(entrega_id: int, status: str, retry_count: int = 0, confirmacion_info: dict = None, **options):
         return task_dispatcher.dispatch_task(
             'logistica.procesar_entrega',
             entrega_id,
             status,
             retry_count,
+            confirmacion_info=confirmacion_info,
             **options
         )
     

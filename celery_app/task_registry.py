@@ -7,7 +7,7 @@ TASK_REGISTRY = {
     # Tareas de Logística
     'logistica.procesar_entrega': {
         'description': 'Procesa una entrega específica',
-        'params': ['entrega_id', 'status', '_retry_count'],
+        'params': ['entrega_id', 'status', '_retry_count', 'confirmacion_info'],
         'queue': 'logistica',
         'timeout': 300,
         'module': 'microservices.logistica_inventario.tasks'

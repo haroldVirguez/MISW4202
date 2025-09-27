@@ -9,7 +9,7 @@ from flask_jwt_extended import JWTManager
 # Importar configuración compartida
 from shared import create_app, add_health_check
 from .modelos import db
-from .vistas import VistaSignUp, VistaLogIn
+from .vistas import VistaSignUp, VistaLogIn, VistaSignatureGen, VistaSignatureVal
 
 
 
@@ -26,6 +26,8 @@ api = Api(app)
 
 api.add_resource(VistaSignUp, '/signup')
 api.add_resource(VistaLogIn, '/login')
+api.add_resource(VistaSignatureGen, '/sign-data')
+api.add_resource(VistaSignatureVal, '/validate-signature')
 
 # Configurar JWT
 jwt = JWTManager(app)

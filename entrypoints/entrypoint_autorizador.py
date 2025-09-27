@@ -22,6 +22,14 @@ if __name__ == '__main__':
     host = os.getenv('FLASK_HOST', '0.0.0.0')
     port = int(os.getenv('FLASK_PORT', 5003))  # Cambiar puerto por defecto
     debug = os.getenv('FLASK_ENV') == 'development'
-    
+    public_key_path = os.getenv('PUBLIC_KEY_PATH', './public_key.pem')
+    private_key_path = os.getenv('PRIVATE_KEY_PATH', './private_key.pem')
+
+    with open(public_key_path, 'r') as pub_file:
+        app.config['PUBLIC_KEY'] = pub_file.read()
+
+    with open(private_key_path, 'r') as priv_file:
+        app.config['PRIVATE_KEY'] = priv_file.read()
+
     print(f"Starting Mi Nuevo Microservicio on {host}:{port}")
     app.run(host=host, port=port, debug=debug)

@@ -9,17 +9,7 @@ import requests
 from datetime import datetime
 from microservices.logistica_inventario.modelos import db, Entrega
 from microservices.logistica_inventario import app
-
-
-def with_app_context(func):
-    """
-    Decorador para ejecutar una función dentro del contexto de la aplicación Flask.
-    """
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        with app.app_context():
-            return func(*args, **kwargs)
-    return wrapper
+from scripts.utils import with_app_context
 
 # Solo importar cuando estamos en el contexto del worker
 try:
@@ -93,7 +83,7 @@ def _retry_task_via_api(entrega_id, current_retry=0, max_retries=3):
         return _retry_task_via_api(entrega_id, current_retry + 1, max_retries)
 
 # Implementaciones de las tareas
-@with_app_context
+@with_app_context(app)
 def procesar_entrega_impl(entrega_id, status, _retry_count=0):
     """Procesa una entrega específica con mecanismo de retry automático"""
     print(f"🚚 [LOGISTICA] Procesando entrega {entrega_id} con estado {status} (retry: {_retry_count})")
