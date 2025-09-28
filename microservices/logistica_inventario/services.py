@@ -20,6 +20,19 @@ def sync_procesar_entrega(entrega_id, retry_count=0, confirmacion_info=None):
 
     if not confirmacion_info.get("usuario_id"):
         return {"error": "usuario_id es requerido en confirmacion_info"}, 400
+    
+    if not confirmacion_info.get("direccion"):
+        return {"error": "direccion es requerido en confirmacion_info"}, 400
+    if not confirmacion_info.get("nombre_recibe"):
+        return {"error": "nombre_recibe es requerido en confirmacion_info"}, 400
+    if not confirmacion_info.get("firma_recibe"):
+        return {"error": "firma_recibe es requerido en confirmacion_info"}, 400
+    if not confirmacion_info.get("firma_payload"):
+        return {"error": "firma_payload es requerido en confirmacion_info"}, 400
+    if not confirmacion_info.get("pedido_id"):
+        return {"error": "pedido_id es requerido en confirmacion_info"}, 400
+    if not confirmacion_info.get("entrega_id"):
+        return {"error": "entrega_id es requerido en confirmacion_info"}, 400
 
     (response, status_code) = call_ms(
         "autorizador",
@@ -32,6 +45,7 @@ def sync_procesar_entrega(entrega_id, retry_count=0, confirmacion_info=None):
                 "firma_recibe": confirmacion_info.get("firma_recibe"),
                 "pedido_id": confirmacion_info.get("pedido_id"),
                 "usuario_id": confirmacion_info.get("usuario_id"),
+                "entrega_id": confirmacion_info.get("entrega_id"),
             },
             "firma": confirmacion_info.get("firma_payload"),
         },

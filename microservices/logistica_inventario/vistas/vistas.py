@@ -1,7 +1,7 @@
 import os
 from flask import request
 import logging
-from scripts.utils import api_protect, get_api_protect_validation_result
+from scripts.utils import api_protect, decrypt, encrypt, get_api_protect_validation_result
 from ..services import sync_procesar_entrega
 from ..modelos import db, Entrega, EntregaSchema
 from flask_restful import Resource
@@ -21,10 +21,22 @@ entrega_schema = EntregaSchema()
 class VistaEntregas(Resource):
 
     def post(self):
+        data = request.get_json()
+        if not data:
+            return {"error": "Body JSON requerido"}, 400
+        
+        if data.get("direccion") is None:
+            return {"error": "direccion es requerida"}, 400
+        if data.get("estado") is None:
+            return {"error": "estado es requerido"}, 400
+        if data.get("pedido_id") is None:
+            return {"error": "pedido_id es requerido"}, 400
+        
+        direccion_encrypted = encrypt(data["direccion"])
         nueva_entrega = Entrega(
-            direccion=request.json["direccion"],
-            estado=request.json["estado"],
-            pedido_id=request.json["pedido_id"],
+            direccion=direccion_encrypted,
+            estado=data["estado"],
+            pedido_id=data["pedido_id"],
         )
         db.session.add(nueva_entrega)
         db.session.commit()
@@ -40,7 +52,16 @@ class VistaEntrega(Resource):
         entrega = Entrega.query.get(id_entrega)
         if not entrega:
             return {"mensaje": "Entrega no encontrada"}, 404
-        return entrega_schema.dump(entrega)
+        return {
+            "id": entrega.id,
+            "direccion": decrypt(entrega.direccion) if entrega.direccion and ':' in entrega.direccion else None,
+            "pedido_id": entrega.pedido_id,
+            "estado": entrega.estado,
+            "nombre_recibe": decrypt(entrega.nombre_recibe) if entrega.nombre_recibe and ':' in entrega.nombre_recibe else None,
+            "firma_recibe": decrypt(entrega.firma_recibe) if entrega.firma_recibe and ':' in entrega.firma_recibe else None,
+            "integridad_firma": entrega.integridad_firma,
+            "fecha_entrega": datetime.fromtimestamp(entrega.fecha_entrega.timestamp()).isoformat() if entrega.fecha_entrega else None,
+        }
 
 
 class VistaConfirmarEntrega(Resource):
@@ -79,6 +100,7 @@ class VistaConfirmarEntrega(Resource):
                 "firma_payload": firma_payload,
                 "pedido_id": pedido_id,
                 "usuario_id": usuario_id,
+                "entrega_id": id_entrega,
             },
         )
 
@@ -120,7 +142,10 @@ class VistaTareas(Resource):
             )  # Parámetro interno para reintentos
             confirmacion_info = data.get("confirmacion_info", None)
 
-            return sync_procesar_entrega(entrega_id, retry_count, confirmacion_info)
+            return sync_procesar_entrega(entrega_id, retry_count, confirmacion_info={
+                **confirmacion_info,
+                "entrega_id": entrega_id,
+            })
 
         elif tipo_tarea == "validar_inventario":
             producto_id = data.get("producto_id")
