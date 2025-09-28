@@ -130,6 +130,13 @@ docker exec $(docker ps --filter "name=celery-worker" -q) celery -A celery_worke
 - **Funcionalidad**: Gestión de entregas, autenticación, dispatch de tareas
 - **Tareas**: `logistica.procesar_entrega`, `logistica.validar_inventario`, `logistica.generar_reporte`
 
+### Autorizador (`m-autorizador`)
+
+- **Puerto**: 5003
+- **Entry Point**: `entrypoint_autorizador.py`
+- **Comando**: `python entrypoint_autorizador.py`
+- **Funcionalidad**: Autentica y permite firmar Peticiones de los usuarios
+
 ### Monitor (`m-monitor`)
 
 - **Puerto**: 5001
@@ -241,3 +248,33 @@ El módulo `shared` proporciona funciones reutilizables para Flask (sin Celery):
 ## Variables de Entorno
 
 Ver `.env.example` para las variables de entorno disponibles.
+
+## Flow of Request
+
+```mermaid
+graph LR
+    A[Client] --> B[API Gateway]
+    B --> C[m-autorizador: Login]
+    C --> D[Response]
+```
+
+```mermaid
+graph LR
+    A[Client Auth] --> B[API Gateway]
+    B --> C[m-autorizador: Sign Payload]
+    C --> D[Response]
+```
+
+
+```mermaid
+graph LR
+    A[Client Auth] --> B[API Gateway]
+    B --> C[m-inventario: Confirmar Entrega]
+    C --> D[m-autorizador: verify sign]
+    D --> C
+    C --> E[Celery Enqueue]
+    C --> F[Response]
+    E --> G[Worker Pick Up] --> H[Update Db]
+    G --> I[Retry: m-inventario -> tareas ]
+    I --> E
+```
