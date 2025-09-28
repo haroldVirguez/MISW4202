@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+﻿#!/usr/bin/env sh
 set -euo pipefail
 
 # Validaciones de entorno para JWT/JWKS sin tocar los entrypoints de Python

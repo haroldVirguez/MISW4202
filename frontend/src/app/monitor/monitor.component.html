@@ -20,39 +20,6 @@
   </div>
 
   <div class="container mt-4">
-    <div class="delivery-flow-panel">
-      <div class="row">
-        <div class="col-12">
-          <div class="flow-buttons">
-            <button 
-              class="btn btn-create" 
-              (click)="crearEntrega()"
-              [disabled]="creandoEntrega">
-              <i class="fas fa-plus"></i>
-              {{ creandoEntrega ? 'Creando...' : 'Crear Nueva Entrega' }}
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="row mt-3" *ngIf="ultimaEntrega || estadoEntrega">
-        <div class="col-md-6" *ngIf="ultimaEntrega">
-          <div class="entrega-info">
-            <h5><i class="fas fa-plus-circle"></i> Última Entrega</h5>
-            <p><strong>ID:</strong> {{ ultimaEntrega.id }}</p>
-            <p><strong>Título:</strong> {{ ultimaEntrega.titulo }}</p>
-            <p><strong>Estado:</strong> {{ formatearEstado(ultimaEntrega.estado) }}</p>
-          </div>
-        </div>
-        <div class="col-md-6" *ngIf="estadoEntrega && mostrarDetallesEntrega">
-          <div class="estado-info">
-            <h5><i class="fas fa-search"></i> Estado de Entrega</h5>
-            <p><strong>Estado:</strong> {{ formatearEstado(estadoEntrega.estado) }}</p>
-            <p><strong>Mensaje:</strong> {{ estadoEntrega.mensaje }}</p>
-            <p><strong>Procesado:</strong> {{ estadoEntrega.procesado ? 'Sí' : 'No' }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="control-panel">
       <div class="row">
@@ -78,6 +45,47 @@
           <div class="last-update">
             <i class="fas fa-clock"></i>
             <span>Última actualización: {{ ultimaActualizacion | date:'HH:mm:ss' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="system-overview">
+      <div class="overview-card">
+        <div class="overview-item">
+          <div class="overview-icon healthy">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="overview-info">
+            <h4>{{ getSystemOverview().healthy_services }}</h4>
+            <p>Servicios Saludables</p>
+          </div>
+        </div>
+        <div class="overview-item">
+          <div class="overview-icon degraded">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="overview-info">
+            <h4>{{ getSystemOverview().degraded_services }}</h4>
+            <p>Servicios Degradados</p>
+          </div>
+        </div>
+        <div class="overview-item">
+          <div class="overview-icon critical">
+            <i class="fas fa-times-circle"></i>
+          </div>
+          <div class="overview-info">
+            <h4>{{ getSystemOverview().critical_services }}</h4>
+            <p>Servicios Críticos</p>
+          </div>
+        </div>
+        <div class="overview-item">
+          <div class="overview-icon total">
+            <i class="fas fa-server"></i>
+          </div>
+          <div class="overview-info">
+            <h4>{{ getSystemOverview().total_services }}</h4>
+            <p>Total Servicios</p>
           </div>
         </div>
       </div>

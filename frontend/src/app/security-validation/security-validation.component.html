@@ -1,0 +1,217 @@
+<div class="security-validation-container">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-10">
+        
+        <div class="security-header">
+          <h1 class="security-title">
+            <i class="fas fa-shield-alt"></i>
+            Validación de Seguridad del Sistema
+          </h1>
+          <p class="security-subtitle">Experimentos interactivos para validar integridad, confidencialidad y procesamiento asíncrono</p>
+        </div>
+
+        <div class="security-body">
+          
+          <div class="panel" *ngIf="message">
+            <div class="message-container">
+              <div [ngClass]="getMessageClass()">
+                <i class="fas" [class.fa-info-circle]="messageType === 'info'"
+                            [class.fa-check-circle]="messageType === 'success'"
+                            [class.fa-exclamation-circle]="messageType === 'error'"></i>
+                {{ message }}
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" *ngIf="message">
+            <div class="panel-header">
+              <h3><i class="fas fa-terminal"></i> Logs de Ejecución</h3>
+            </div>
+            <div class="panel-content">
+              <div class="log-container">
+                <div class="log-entry">
+                  <span class="log-timestamp">{{ getCurrentTime() }}</span>
+                  <span class="log-message">{{ message }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" *ngFor="let test of tests">
+            <div class="panel-header">
+              <h3>
+                <i [class]="getTestStatusIcon(test.status)"></i>
+                {{ test.name }}
+              </h3>
+              <div class="panel-controls">
+                <span class="badge" [ngClass]="'badge-' + getTestStatusClass(test.status)" *ngIf="test.status !== 'pending'">
+                  {{ test.status | uppercase }}
+                </span>
+                <button 
+                  class="btn btn-sm btn-outline-primary" 
+                  (click)="test.type === 'encryption' ? testEncryption() : testIntegrity()"
+                  [disabled]="loading">
+                  <i class="fas fa-play"></i> Ejecutar
+                </button>
+              </div>
+            </div>
+            <div class="panel-content">
+              <p class="test-description">{{ test.description }}</p>
+              
+              <div *ngIf="test.result" class="test-results">
+                <h5>Resultados:</h5>
+                
+                <div *ngIf="test.type === 'encryption' && encryptionResult" class="result-section">
+                  <div class="result-item">
+                    <strong>Datos Originales:</strong>
+                    <code>{{ encryptionResult.originalData }}</code>
+                  </div>
+                  <div class="result-item">
+                    <strong>Datos Cifrados en BD:</strong>
+                    <code>{{ encryptionResult.encryptedData }}</code>
+                  </div>
+                  <div class="result-item">
+                    <strong>Estado del Cifrado:</strong>
+                    <span class="badge" [ngClass]="encryptionResult.isValid ? 'badge-success' : 'badge-danger'">
+                      {{ encryptionResult.isValid ? 'CIFRADO CORRECTAMENTE' : 'NO CIFRADO' }}
+                    </span>
+                  </div>
+                </div>
+
+                <div *ngIf="test.type === 'integrity' && integrityResult" class="result-section">
+                  <h5 class="mb-3">🔐 Resultados de Validación de Integridad</h5>
+                  
+                  <div class="test-case mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                      <span class="badge badge-primary me-2">TEST 1</span>
+                      <strong>Confirmar Entrega con Firma Válida</strong>
+                    </div>
+                    <div class="test-details">
+                      <div class="row">
+                        <div class="col-md-6">
+                          <small class="text-muted">Endpoint:</small>
+                          <code class="d-block">POST /api/v1/logistica/entrega/{{ integrityResult.originalPayload.entrega_id }}/confirmar</code>
+                        </div>
+                        <div class="col-md-6">
+                          <small class="text-muted">Firma HMAC:</small>
+                          <code class="d-block">{{ integrityResult.originalSignature.substring(0, 20) }}...</code>
+                        </div>
+                      </div>
+                      <div class="mt-2">
+                        <span class="badge" [ngClass]="integrityResult.validSignatureTest.isValid ? 'badge-success' : 'badge-warning'">
+                          {{ integrityResult.validSignatureTest.isValid ? '✅ CONFIRMADA' : '❌ RECHAZADA' }}
+                        </span>
+                        <small class="text-muted ms-2">{{ integrityResult.validSignatureTest.reason }}</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="test-case mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                      <span class="badge badge-warning me-2">TEST 2</span>
+                      <strong>Confirmar Entrega con Firma Inválida (SIMULACIÓN DE ATAQUE)</strong>
+                    </div>
+                    <div class="test-details">
+                      <div class="row">
+                        <div class="col-md-6">
+                          <small class="text-muted">Endpoint:</small>
+                          <code class="d-block">POST /api/v1/logistica/entrega/{{ integrityResult.originalPayload.entrega_id }}/confirmar</code>
+                        </div>
+                        <div class="col-md-6">
+                          <small class="text-muted">Datos Alterados:</small>
+                          <code class="d-block text-danger">{{ integrityResult.alteredPayload.direccion }}</code>
+                        </div>
+                      </div>
+                      <div class="mt-2">
+                        <span class="badge badge-secondary">
+                          🔒 PRÓXIMAMENTE
+                        </span>
+                        <small class="text-muted ms-2">{{ integrityResult.invalidSignatureTest.reason }}</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="test-case mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                      <span class="badge badge-info me-2">TEST 3</span>
+                      <strong>Confirmar Entrega Sin Firma (SIMULACIÓN DE ATAQUE)</strong>
+                    </div>
+                    <div class="test-details">
+                      <div class="row">
+                        <div class="col-md-6">
+                          <small class="text-muted">Endpoint:</small>
+                          <code class="d-block">POST /api/v1/logistica/entrega/{{ integrityResult.originalPayload.entrega_id }}/confirmar</code>
+                        </div>
+                        <div class="col-md-6">
+                          <small class="text-muted">Firma:</small>
+                          <code class="d-block text-danger">SIN FIRMA (firma_payload omitido)</code>
+                        </div>
+                      </div>
+                      <div class="mt-2">
+                        <span class="badge badge-secondary">
+                          🔒 PRÓXIMAMENTE
+                        </span>
+                        <small class="text-muted ms-2">{{ integrityResult.alteredSignatureTest.reason }}</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="test-summary mt-4 p-3" [ngClass]="integrityResult.isValid ? 'bg-success' : 'bg-danger'">
+                    <div class="d-flex align-items-center">
+                      <i class="fas fa-shield-alt me-2"></i>
+                      <strong class="text-white">RESUMEN DE INTEGRIDAD:</strong>
+                      <span class="badge badge-light ms-2">
+                        {{ integrityResult.isValid ? '✅ SISTEMA SEGURO' : '❌ SISTEMA COMPROMETIDO' }}
+                      </span>
+                    </div>
+                    <small class="text-white d-block mt-1">
+                      {{ integrityResult.isValid ? 
+                        'El sistema acepta correctamente firmas válidas y protege la integridad de los datos' : 
+                        'El sistema no está procesando correctamente las firmas válidas' }}
+                    </small>
+                  </div>
+                </div>
+
+              </div>
+
+              <div *ngIf="test.timestamp" class="test-timestamp">
+                <small class="text-muted">
+                  <i class="fas fa-clock"></i>
+                  Ejecutado: {{ test.timestamp | date:'medium' }}
+                </small>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3><i class="fas fa-database"></i> Datos de Prueba</h3>
+            </div>
+            <div class="panel-content">
+              <p>Los siguientes datos se utilizan para los experimentos de seguridad:</p>
+              <div class="test-data">
+                <div class="data-item">
+                  <strong>Dirección:</strong> {{ testData.direccion }}
+                </div>
+                <div class="data-item">
+                  <strong>Nombre Receptor:</strong> {{ testData.nombre_recibe }}
+                </div>
+                <div class="data-item">
+                  <strong>Firma Receptor:</strong> {{ testData.firma_recibe }}
+                </div>
+                <div class="data-item">
+                  <strong>Pedido ID:</strong> {{ testData.pedido_id }}
+                </div>
+                <div class="data-item">
+                  <strong>Usuario ID:</strong> {{ testData.usuario_id }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

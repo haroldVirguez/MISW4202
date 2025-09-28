@@ -7,7 +7,7 @@ db = SQLAlchemy()
 class Entrega(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     direccion = db.Column(db.String(128))
-    pedido_id = db.Column(db.Integer)
+    pedido_id = db.Column(db.String(64))
     estado = db.Column(db.String(64))
     firma_recibe = db.Column(db.Text, nullable=True)
     nombre_recibe = db.Column(db.String(128), nullable=True)

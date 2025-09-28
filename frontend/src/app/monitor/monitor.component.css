@@ -553,6 +553,75 @@
     .badge.unreachable { background: #4b5563; color: white; }
     .badge.error { background: #dc2626; color: white; }
 
+.system-overview {
+  margin-bottom: 2rem;
+}
+
+.overview-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.overview-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+}
+
+.overview-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.overview-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+}
+
+.overview-icon.healthy {
+  background: #28a745;
+}
+
+.overview-icon.degraded {
+  background: #ffc107;
+}
+
+.overview-icon.critical {
+  background: #dc3545;
+}
+
+.overview-icon.total {
+  background: #6c757d;
+}
+
+.overview-info h4 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #495057;
+}
+
+.overview-info p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .monitor-title {
@@ -575,5 +644,9 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+  }
+  
+  .overview-card {
+    grid-template-columns: 1fr;
   }
 }

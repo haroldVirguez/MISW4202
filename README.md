@@ -71,6 +71,12 @@ docker-compose up --build
 
 # Ejecutar en segundo plano
 docker-compose up -d --build
+
+# R
+docker-compose down -v
+
+# Sólo construir frontend
+docker-compose up --build -d frontend
 ```
 
 ### Servicios Disponibles

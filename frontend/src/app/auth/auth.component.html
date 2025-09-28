@@ -1,0 +1,167 @@
+<div class="auth-container">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="auth-card">
+          <div class="auth-header">
+            <h1 class="auth-title">
+              <i class="fas fa-shield-alt"></i>
+              Sistema de Autenticación y Autorización
+            </h1>
+            <p class="auth-subtitle">Gestión de usuarios, firmas digitales y validación</p>
+          </div>
+
+          <div class="auth-nav">
+            <button 
+              class="nav-btn" 
+              [class.active]="showLogin"
+              (click)="toggleView('login')">
+              <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+            <button 
+              class="nav-btn" 
+              [class.active]="showSignup"
+              (click)="toggleView('signup')">
+              <i class="fas fa-user-plus"></i> Registro
+            </button>
+            <button 
+              class="nav-btn" 
+              [class.active]="showSignature"
+              (click)="toggleView('signature')"
+              [disabled]="!isLoggedIn">
+              <i class="fas fa-signature"></i> Firmar
+            </button>
+            <button 
+              class="nav-btn" 
+              [class.active]="showValidation"
+              (click)="toggleView('validation')">
+              <i class="fas fa-check-circle"></i> Validar
+            </button>
+          </div>
+
+          <div *ngIf="message" class="message-container">
+            <div [ngClass]="getMessageClass()">
+              <i class="fas" [class.fa-info-circle]="messageType === 'info'"
+                          [class.fa-check-circle]="messageType === 'success'"
+                          [class.fa-exclamation-circle]="messageType === 'error'"></i>
+              {{ message }}
+            </div>
+          </div>
+
+          <div *ngIf="isLoggedIn" class="auth-status">
+            <div class="user-info">
+              <i class="fas fa-user"></i>
+              <span>Conectado como: <strong>{{ currentUser?.nombre }}</strong></span>
+              <span class="user-roles">Roles: {{ currentUser?.roles }}</span>
+            </div>
+            <button class="btn btn-logout" (click)="logout()">
+              <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
+          </div>
+
+          <div *ngIf="showLogin" class="auth-form">
+            <h3><i class="fas fa-sign-in-alt"></i> Iniciar Sesión</h3>
+            <form (ngSubmit)="login()">
+              <div class="form-group">
+                <label for="login-nombre">Usuario</label>
+                <input 
+                  type="text" 
+                  id="login-nombre"
+                  class="form-control"
+                  [(ngModel)]="loginForm.nombre" 
+                  name="nombre"
+                  required>
+              </div>
+              <div class="form-group">
+                <label for="login-contrasena">Contraseña</label>
+                <input 
+                  type="password" 
+                  id="login-contrasena"
+                  class="form-control"
+                  [(ngModel)]="loginForm.contrasena" 
+                  name="contrasena"
+                  required>
+              </div>
+              <button 
+                type="submit" 
+                class="btn btn-primary btn-block"
+                [disabled]="loginLoading">
+                <i class="fas fa-spinner fa-spin" *ngIf="loginLoading"></i>
+                <i class="fas fa-sign-in-alt" *ngIf="!loginLoading"></i>
+                {{ loginLoading ? 'Iniciando...' : 'Iniciar Sesión' }}
+              </button>
+            </form>
+          </div>
+
+          <div *ngIf="showSignup" class="auth-form">
+            <h3><i class="fas fa-user-plus"></i> Registrar Usuario</h3>
+            <form (ngSubmit)="signup()">
+              <div class="form-group">
+                <label for="signup-nombre">Usuario</label>
+                <input 
+                  type="text" 
+                  id="signup-nombre"
+                  class="form-control"
+                  [(ngModel)]="signupForm.nombre" 
+                  name="nombre"
+                  required>
+              </div>
+              <div class="form-group">
+                <label for="signup-contrasena">Contraseña</label>
+                <input 
+                  type="password" 
+                  id="signup-contrasena"
+                  class="form-control"
+                  [(ngModel)]="signupForm.contrasena" 
+                  name="contrasena"
+                  required>
+              </div>
+              <div class="form-group">
+                <label for="signup-roles">Roles</label>
+                <select 
+                  id="signup-roles"
+                  class="form-control"
+                  [(ngModel)]="signupForm.roles" 
+                  name="roles">
+                  <option value="user">Usuario</option>
+                  <option value="admin">Administrador</option>
+                  <option value="user,admin">Usuario y Admin</option>
+                </select>
+              </div>
+              <button 
+                type="submit" 
+                class="btn btn-success btn-block"
+                [disabled]="signupLoading">
+                <i class="fas fa-spinner fa-spin" *ngIf="signupLoading"></i>
+                <i class="fas fa-user-plus" *ngIf="!signupLoading"></i>
+                {{ signupLoading ? 'Creando...' : 'Registrar Usuario' }}
+              </button>
+            </form>
+          </div>
+
+          <div *ngIf="showSignature" class="auth-form">
+            <h3><i class="fas fa-signature"></i> Generar Firma Digital</h3>
+            <div class="coming-soon-section">
+              <div class="text-center py-5">
+                <i class="fas fa-lock fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Próximamente</h4>
+                <p class="text-muted">Esta funcionalidad estará disponible en una próxima versión.</p>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="showValidation" class="auth-form">
+            <h3><i class="fas fa-check-circle"></i> Validar Firma Digital</h3>
+            <div class="coming-soon-section">
+              <div class="text-center py-5">
+                <i class="fas fa-lock fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Próximamente</h4>
+                <p class="text-muted">Esta funcionalidad estará disponible en una próxima versión.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

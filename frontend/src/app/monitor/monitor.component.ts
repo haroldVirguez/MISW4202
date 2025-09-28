@@ -181,6 +181,25 @@ export class MonitorComponent implements OnInit, OnDestroy {
     return status.toLowerCase();
   }
 
+  getSystemOverview() {
+    return {
+      total_services: 4,
+      healthy_services: this.estadoLogistica?.overall_status === 'healthy' ? 3 : 2,
+      degraded_services: this.estadoLogistica?.overall_status === 'degraded' ? 1 : 0,
+      critical_services: this.estadoLogistica?.overall_status === 'critical' ? 1 : 0
+    };
+  }
+
+  getServiceStatus(serviceName: string) {
+    const services = {
+      'logistica': this.estadoLogistica?.overall_status || 'unknown',
+      'autorizador': 'healthy',
+      'monitor': 'healthy',
+      'celery': this.estadoLogistica?.broker_status?.redis_connected ? 'healthy' : 'degraded'
+    };
+    return services[serviceName] || 'unknown';
+  }
+
   crearEntrega() {
     this.creandoEntrega = true;
     
