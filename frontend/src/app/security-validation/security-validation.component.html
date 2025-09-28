@@ -110,7 +110,7 @@
                   <div class="test-case mb-3">
                     <div class="d-flex align-items-center mb-2">
                       <span class="badge badge-warning me-2">TEST 2</span>
-                      <strong>Confirmar Entrega con Firma Inválida (SIMULACIÓN DE ATAQUE)</strong>
+                      <strong>Confirmar Entrega con Payload Inválido (Simulación de ataque)</strong>
                     </div>
                     <div class="test-details">
                       <div class="row">
@@ -119,13 +119,13 @@
                           <code class="d-block">POST /api/v1/logistica/entrega/{{ integrityResult.originalPayload.entrega_id }}/confirmar</code>
                         </div>
                         <div class="col-md-6">
-                          <small class="text-muted">Datos Alterados:</small>
+                          <small class="text-muted">Campo alterado:</small>
                           <code class="d-block text-danger">{{ integrityResult.alteredPayload.direccion }}</code>
                         </div>
                       </div>
                       <div class="mt-2">
-                        <span class="badge badge-secondary">
-                          🔒 PRÓXIMAMENTE
+                        <span class="badge" [ngClass]="integrityResult.invalidSignatureTest.isValid ? 'badge-success' : 'badge-danger'">
+                          {{ integrityResult.invalidSignatureTest.isValid ? '✅ RECHAZADA' : '❌ NO RECHAZÓ' }}
                         </span>
                         <small class="text-muted ms-2">{{ integrityResult.invalidSignatureTest.reason }}</small>
                       </div>
@@ -135,7 +135,7 @@
                   <div class="test-case mb-3">
                     <div class="d-flex align-items-center mb-2">
                       <span class="badge badge-info me-2">TEST 3</span>
-                      <strong>Confirmar Entrega Sin Firma (SIMULACIÓN DE ATAQUE)</strong>
+                      <strong>Confirmar Entrega con Firma Alterada (Simulación de ataque)</strong>
                     </div>
                     <div class="test-details">
                       <div class="row">
@@ -144,13 +144,13 @@
                           <code class="d-block">POST /api/v1/logistica/entrega/{{ integrityResult.originalPayload.entrega_id }}/confirmar</code>
                         </div>
                         <div class="col-md-6">
-                          <small class="text-muted">Firma:</small>
-                          <code class="d-block text-danger">SIN FIRMA (firma_payload omitido)</code>
+                          <small class="text-muted">Firma alterada:</small>
+                          <code class="d-block text-danger">{{ integrityResult.alteredSignature.substring(0, 20) }}...</code>
                         </div>
                       </div>
                       <div class="mt-2">
-                        <span class="badge badge-secondary">
-                          🔒 PRÓXIMAMENTE
+                        <span class="badge" [ngClass]="integrityResult.alteredSignatureTest.isValid ? 'badge-success' : 'badge-danger'">
+                          {{ integrityResult.alteredSignatureTest.isValid ? '✅ RECHAZADA' : '❌ NO RECHAZÓ' }}
                         </span>
                         <small class="text-muted ms-2">{{ integrityResult.alteredSignatureTest.reason }}</small>
                       </div>

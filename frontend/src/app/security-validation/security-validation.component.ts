@@ -110,7 +110,7 @@ export class SecurityValidationComponent implements OnInit {
 
         this.encryptionResult = {
           originalData: this.testData.direccion,
-          encryptedData: createResponse.direccion, 
+          encryptedData: createResponse.direccion,
           decryptedData: entregaResponse.direccion,
           isValid: isEncrypted
         };
@@ -120,9 +120,15 @@ export class SecurityValidationComponent implements OnInit {
         test.timestamp = new Date().toISOString();
         
         if (isEncrypted) {
-          this.showMessage(`✅ Test de cifrado completado: Los datos están cifrados en la BD. Original: "${this.testData.direccion}" → Cifrado: "${createResponse.direccion.substring(0, 20)}..." (${createResponse.direccion.length} chars) → Descifrado: "${entregaResponse.direccion}"`, 'success');
+          this.showMessage(
+            `✅ Test de cifrado completado: Los datos están cifrados en la BD. Original: "${this.testData.direccion}" → Cifrado: "${createResponse.direccion.substring(0, 20)}..." (${createResponse.direccion.length} chars) → Descifrado: "${entregaResponse.direccion}"`,
+            'success'
+          );
         } else {
-          this.showMessage(`❌ Test de cifrado falló: Los datos NO están cifrados. Original: "${this.testData.direccion}" → BD: "${createResponse.direccion}"`, 'error');
+          this.showMessage(
+            `❌ Test de cifrado falló: Los datos NO están cifrados. Original: "${this.testData.direccion}" → BD: "${createResponse.direccion}"`,
+            'error'
+          );
         }
         
         this.cdr.detectChanges();
@@ -136,6 +142,19 @@ export class SecurityValidationComponent implements OnInit {
     }
   }
 
+  private tamperHexSignature(sig: string): string {
+    const hexRe = /^[0-9a-f]+$/i;
+    if (!sig || sig.length < 4) return sig + '0';
+    if (!hexRe.test(sig)) {
+      const flip = sig[0] === 'A' ? 'B' : 'A';
+      return flip + sig.slice(1);
+    }
+    const i = Math.max(0, Math.floor(sig.length / 2) - 1);
+    const c = sig[i];
+    const newC = c.toLowerCase() === 'f' ? '0' : (parseInt(c, 16) + 1).toString(16);
+    return sig.slice(0, i) + newC + sig.slice(i + 1);
+  }
+
   async testIntegrity() {
     const test = this.tests.find(t => t.id === 'integrity_test');
     if (!test) return;
@@ -144,6 +163,7 @@ export class SecurityValidationComponent implements OnInit {
     this.clearMessage();
 
     try {
+      // 1) Crear entrega base
       const entregaData = {
         direccion: this.testData.direccion,
         estado: 'PENDIENTE',
@@ -151,100 +171,201 @@ export class SecurityValidationComponent implements OnInit {
       };
 
       console.log('Creando entrega para test de integridad:', entregaData);
-      const createResponse = await this.http.post<any>('http://localhost:8080/api/v1/logistica/entregas', entregaData).toPromise();
+      const createResponse = await firstValueFrom(
+        this.http.post<any>('http://localhost:8080/api/v1/logistica/entregas', entregaData)
+      );
       console.log('Entrega creada para integridad:', createResponse);
-      
-      if (createResponse && createResponse.id) {
-        const timestamp = new Date().toISOString();
-        const payload = {
-          direccion: this.testData.direccion,
-          nombre_recibe: this.testData.nombre_recibe,
-          firma_recibe: this.testData.firma_recibe,
-          pedido_id: this.testData.pedido_id,
-          entrega_id: createResponse.id,
-          timestamp: timestamp
-        };
 
-        console.log('Payload para firma:', payload);
-        console.log('🔐 Asegurando usuario con rol logistica...');
-        const authToken = await this.ensureLogisticaToken();
-        console.log('✅ Token obtenido (rol logistica ok):', authToken.substring(0, 20) + '...');
+      if (!createResponse?.id) 
+        throw new Error('No se pudo crear la entrega para el test de integridad');
 
-        const businessPayload = {
-          entrega_id: createResponse.id, 
-          pedido_id: this.testData.pedido_id,
-          direccion: this.testData.direccion,
-          nombre_recibe: this.testData.nombre_recibe,
-          firma_recibe: this.testData.firma_recibe,
-          timestamp: new Date().toISOString()
-        };
+      // 2) Obtener token (cualquiera válido, sin roles)
+      const authToken = await this.getAuthToken();
+      console.log('✅ Token obtenido:', authToken.substring(0, 20) + '...');
 
-        console.log('🧾 Payload para firma:', businessPayload);
-        console.log('🔐 Generando firma real...');
-        const signatureResponse = await firstValueFrom(
-          this.http.post<any>('http://localhost:8080/api/v1/autorizador/sign-data',
-            { payload: businessPayload },
+      // 3) Construir payload EXACTO que el backend valida
+      const userId = this.getUserIdFromToken(authToken);
+      if (userId == null) 
+        throw new Error('No se pudo extraer usuario_id del JWT. Revisa que el token contenga sub.id');
+
+      const businessPayload = {
+        direccion: this.testData.direccion,
+        nombre_recibe: this.testData.nombre_recibe,
+        firma_recibe: this.testData.firma_recibe,
+        pedido_id: this.testData.pedido_id,
+        usuario_id: userId,
+        entrega_id: createResponse.id
+      };
+
+      // 4) Solicitar firma real al Autorizador
+      console.log('🔐 Generando firma real…');
+      const signatureResponse = await firstValueFrom(
+        this.http.post<any>(
+          'http://localhost:8080/api/v1/autorizador/sign-data',
+          { payload: businessPayload },
+          { headers: { Authorization: `Bearer ${authToken}` } }
+        )
+      );
+
+      const signedPayload = signatureResponse.payload;
+      const realSignature = signatureResponse.firma;
+      console.log('✅ Firma real (HMAC):', realSignature);
+      console.log('📋 Payload firmado:', signedPayload);
+
+      // --- TEST 1: payload original + firma correcta (debe aceptar) ---
+      console.log('🧪 TEST 1: Confirmar con firma válida…');
+      const validConfirmationData = { ...signedPayload, firma_payload: realSignature };
+
+      let validSignatureTest: any;
+      try {
+        const validResp = await firstValueFrom(
+          this.http.post<any>(
+            `http://localhost:8080/api/v1/logistica/entrega/${createResponse.id}/confirmar`,
+            validConfirmationData,
             { headers: { Authorization: `Bearer ${authToken}` } }
           )
         );
-        
-        const signedPayload = signatureResponse.payload;
-        const realSignature = signatureResponse.firma;
-        console.log('✅ Firma real:', realSignature);
-        console.log('📋 Payload firmado (con usuario_id):', signedPayload);
-
-        console.log('🧪 TEST 1: Confirmando con firma válida...');
-        const validConfirmationData = { ...signedPayload, firma_payload: realSignature };
-        let validSignatureTest;
-        try {
-          const validResponse = await firstValueFrom(
-            this.http.post<any>(
-              `http://localhost:8080/api/v1/logistica/entrega/${createResponse.id}/confirmar`,
-              validConfirmationData,
-              { headers: { Authorization: `Bearer ${authToken}` } }
-            )
-          );
-          validSignatureTest = { isValid: true, reason: '✅ Aceptó firma válida', response: validResponse };
-          console.log('✅ TEST 1 OK', validResponse);
-        } catch (error: any) {
-          validSignatureTest = { isValid: false, reason: `❌ ${error.status} ${error.statusText}`, error };
-          console.log('❌ TEST 1 FAIL', error);
-        }
-
-
-        this.integrityResult = {
-          originalPayload: signedPayload,
-          originalSignature: realSignature,
-          alteredPayload: { ...signedPayload, direccion: 'DIRECCIÓN ALTERADA' },
-          alteredSignature: realSignature,
-          validSignatureTest: validSignatureTest,
-          invalidSignatureTest: { isValid: false, reason: 'Próximamente' },
-          alteredSignatureTest: { isValid: false, reason: 'Próximamente' },
-          isValid: validSignatureTest.isValid
+        validSignatureTest = { isValid: true, reason: '✅ Aceptó firma válida', response: validResp };
+        console.log('✅ TEST 1 OK', validResp);
+      } catch (error: any) {
+        validSignatureTest = {
+          isValid: false,
+          reason: `❌ Esperado 200, obtuvo ${error?.status} ${error?.statusText || ''}`,
+          error
         };
-
-        test.status = this.integrityResult.isValid ? 'success' : 'failed';
-        test.result = this.integrityResult;
-        test.timestamp = new Date().toISOString();
-        
-        if (this.integrityResult.isValid) {
-          this.showMessage(`✅ Test de integridad completado: Firma válida aceptada, firmas alteradas rechazadas. Firma: "${realSignature.substring(0, 20)}..."`, 'success');
-        } else {
-          this.showMessage('❌ Test de integridad falló: Error en validación de integridad', 'error');
-        }
-        
-        this.cdr.detectChanges();
-      } else {
-        throw new Error('No se pudo crear la entrega para el test de integridad');
+        console.log('❌ TEST 1 FAIL', error);
       }
+
+      // --- TEST 2: payload ALTERADO + firma original (debe rechazar con 403) ---
+      console.log('🧪 TEST 2: Confirmar con payload alterado + misma firma…');
+      const alteredPayload = { ...signedPayload, direccion: 'DIRECCIÓN ALTERADA' };
+      const invalidWithAlteredPayload = { ...alteredPayload, firma_payload: realSignature };
+
+      let invalidSignatureTest: any;
+      try {
+        const resp = await firstValueFrom(
+          this.http.post<any>(
+            `http://localhost:8080/api/v1/logistica/entrega/${createResponse.id}/confirmar`,
+            invalidWithAlteredPayload,
+            { headers: { Authorization: `Bearer ${authToken}` } }
+          )
+        );
+        invalidSignatureTest = {
+          isValid: false,
+          reason: '❌ ACEPTÓ payload alterado con firma original (debería rechazar 403)',
+          response: resp
+        };
+        console.warn('⚠️ TEST 2 comportamiento inesperado', resp);
+      } catch (error: any) {
+        const ok = error?.status === 403;
+        invalidSignatureTest = {
+          isValid: ok,
+          reason: ok ? '✅ Rechazó payload alterado (403)' :
+                       `❌ Esperado 403, obtuvo ${error?.status} ${error?.statusText || ''}`,
+          error
+        };
+        console.log(ok ? '✅ TEST 2 OK' : '❌ TEST 2 FAIL', error);
+      }
+
+      // --- TEST 3: payload original + FIRMA ALTERADA (debe rechazar con 403) ---
+      console.log('🧪 TEST 3: Confirmar con firma alterada…');
+      const tamperedSignature = this.tamperHexSignature(realSignature);
+      const invalidWithTamperedSig = { ...signedPayload, firma_payload: tamperedSignature };
+
+      let alteredSignatureTest: any;
+      try {
+        const resp = await firstValueFrom(
+          this.http.post<any>(
+            `http://localhost:8080/api/v1/logistica/entrega/${createResponse.id}/confirmar`,
+            invalidWithTamperedSig,
+            { headers: { Authorization: `Bearer ${authToken}` } }
+          )
+        );
+        alteredSignatureTest = {
+          isValid: false,
+          reason: '❌ ACEPTÓ firma alterada (debería rechazar 403)',
+          response: resp
+        };
+        console.warn('⚠️ TEST 3 comportamiento inesperado', resp);
+      } catch (error: any) {
+        const ok = error?.status === 403;
+        alteredSignatureTest = {
+          isValid: ok,
+          reason: ok ? '✅ Rechazó firma alterada (403)' :
+                       `❌ Esperado 403, obtuvo ${error?.status} ${error?.statusText || ''}`,
+          error
+        };
+        console.log(ok ? '✅ TEST 3 OK' : '❌ TEST 3 FAIL', error);
+      }
+
+      // Consolidar resultados
+      this.integrityResult = {
+        originalPayload: signedPayload,
+        originalSignature: realSignature,
+        alteredPayload,
+        alteredSignature: tamperedSignature,
+        validSignatureTest,
+        invalidSignatureTest,
+        alteredSignatureTest,
+        isValid: !!(validSignatureTest?.isValid && invalidSignatureTest?.isValid && alteredSignatureTest?.isValid)
+      };
+
+      test.status = this.integrityResult.isValid ? 'success' : 'failed';
+      test.result = this.integrityResult;
+      test.timestamp = new Date().toISOString();
+
+      if (this.integrityResult.isValid) {
+        this.showMessage(
+          `✅ Integridad OK: Válida aceptada (200), alteradas rechazadas (403). Firma: "${realSignature.substring(0, 20)}..."`,
+          'success'
+        );
+      } else {
+        this.showMessage('❌ Integridad falló: revisa detalles de los 3 tests en la sección de resultados.', 'error');
+      }
+
+      this.cdr.detectChanges();
+
     } catch (error) {
-      test.status = 'failed';
-      test.result = { error: error };
+      const testRef = this.tests.find(t => t.id === 'integrity_test');
+      if (testRef) {
+        testRef.status = 'failed';
+        testRef.result = { error: error };
+      }
       this.showMessage('❌ Error en test de integridad: ' + error, 'error');
     }
   }
 
+  private parseJwtPayload(token: string): any | null {
+    try {
+      const base64 = token.split('.')[1];
+      const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(decodeURIComponent(
+        json.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+      ));
+    } catch { return null; }
+  }
 
+  private getUserIdFromToken(token: string): number | string | null {
+    const p = this.parseJwtPayload(token);
+    return p?.sub?.id ?? null;
+  }
+
+  private async getAuthToken(): Promise<string> {
+    const tryLogin = (cred: any) =>
+      firstValueFrom(this.http.post<any>('http://localhost:8080/api/v1/autorizador/login', cred));
+
+    const candidates = [
+      { nombre: 'admin', contrasena: 'admin' },
+    ];
+
+    for (const cred of candidates) {
+      try {
+        const r = await tryLogin(cred);
+        if (r?.token) return r.token;
+      } catch {  }
+    }
+    throw new Error('No se pudo obtener un token válido con credenciales de prueba (admin/admin, jonatan/123456, user/user).');
+  }
 
   loadExistingData() {
     this.http.get<any[]>('http://localhost:8080/api/v1/logistica/entregas').subscribe({
@@ -291,81 +412,6 @@ export class SecurityValidationComponent implements OnInit {
 
   getCurrentTime(): string {
     return new Date().toLocaleTimeString();
-  }
-
-  private generateMockHMAC(payload: string): string {
-    const mockKey = 'clave_secreta_sistema';
-    const combined = payload + mockKey;
-    let hash = 0;
-    for (let i = 0; i < combined.length; i++) {
-      const char = combined.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; 
-    }
-    return Math.abs(hash).toString(16).padStart(16, '0') + '_' + Date.now().toString(16);
-  }
-
-  private async validateSignature(payload: any, signature: string): Promise<{isValid: boolean, reason?: string}> {
-    try {
-      const expectedSignature = this.generateMockHMAC(JSON.stringify(payload));
-      const isValid = signature === expectedSignature;
-      
-      return {
-        isValid: isValid,
-        reason: isValid ? 'Firma válida' : 'Firma no coincide con el payload'
-      };
-    } catch (error) {
-      return {
-        isValid: false,
-        reason: 'Error en validación: ' + error
-      };
-    }
-  }
-  
-  private parseJwtPayload(token: string): any | null {
-    try {
-      const base64 = token.split('.')[1];
-      const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
-      return JSON.parse(decodeURIComponent(
-        json.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
-      ));
-    } catch { return null; }
-  }
-
-  private tokenHasRole(token: string, role: string): boolean {
-    const p = this.parseJwtPayload(token);
-    if (!p) return false;
-    const roles = p.roles ?? p.authorities ?? p.scopes ?? p.scope ?? [];
-    if (typeof roles === 'string') return roles.split(/[ ,]/).includes(role);
-    return Array.isArray(roles) ? roles.includes(role) : false;
-  }
-
-  private async ensureLogisticaToken(): Promise<string> {
-    const login = async (cred: any) =>
-      firstValueFrom(this.http.post<any>('http://localhost:8080/api/v1/autorizador/login', cred));
-
-    try {
-      const r = await login({ nombre: 'logistica', contrasena: 'logistica' });
-      if (this.tokenHasRole(r.token, 'logistica')) return r.token;
-    } catch {}
-
-    try {
-      const adminAuth = await login({ nombre: 'admin', contrasena: 'admin' });
-      await firstValueFrom(this.http.post<any>('http://localhost:8080/api/v1/autorizador/asignar-rol', {
-        nombre: 'logistica',
-        rol: 'logistica'
-      }, {
-        headers: { Authorization: `Bearer ${adminAuth.token}` }
-      }));
-      
-      const r2 = await login({ nombre: 'logistica', contrasena: 'logistica' });
-      if (!this.tokenHasRole(r2.token, 'logistica')) {
-        throw new Error('El JWT no incluye rol "logistica". Revisa claims del backend.');
-      }
-      return r2.token;
-    } catch (error) {
-      throw new Error('No se pudo obtener token con rol logistica: ' + error);
-    }
   }
 
   private canonicalize(obj: any): any {
