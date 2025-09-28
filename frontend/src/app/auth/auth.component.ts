@@ -75,6 +75,14 @@ export class AuthComponent implements OnInit {
     firma: '',
     resultado: null as ValidationResponse | null
   };
+
+  signForm = {
+    entrega_id: '',
+    pedido_id: '',
+    direccion: '',
+    nombre_recibe: '',
+    firma_recibe: ''
+  };
   
   message = '';
   messageType = 'info';
@@ -83,6 +91,44 @@ export class AuthComponent implements OnInit {
 
   ngOnInit() {
     this.checkAuthStatus();
+  }
+
+  private buildPayloadFromForm(usuarioId: number | string) {
+    const { entrega_id, pedido_id, direccion, nombre_recibe, firma_recibe } = this.signForm;
+    return {
+      direccion,
+      nombre_recibe,
+      firma_recibe,
+      pedido_id,
+      usuario_id: usuarioId,
+      entrega_id: entrega_id ? Number(entrega_id) : entrega_id
+    };
+  }
+
+  setExamplePayload() {
+    if (!this.currentUser?.id) {
+      this.showMessage('Inicia sesión para autocompletar el usuario_id.', 'error');
+      return;
+    }
+    this.signForm = {
+      entrega_id: '1',
+      pedido_id: 'PED-001',
+      direccion: 'Calle 123 #45-67, Bogotá',
+      nombre_recibe: 'Juan Pérez',
+      firma_recibe: 'Firma digital del receptor'
+    };
+    const payload = this.buildPayloadFromForm(this.currentUser.id);
+    this.signatureData.payload = JSON.stringify(payload, null, 2);
+  }
+
+  useLastSignatureInValidation() {
+    if (!this.signatureData.payload || !this.signatureData.firma) {
+      this.showMessage('No hay firma previa para reutilizar.', 'error');
+      return;
+    }
+    this.validationData.payload = this.signatureData.payload;
+    this.validationData.firma = this.signatureData.firma;
+    this.toggleView('validation');
   }
 
   checkAuthStatus() {
@@ -187,61 +233,78 @@ export class AuthComponent implements OnInit {
   generateSignature() {
     this.signatureLoading = true;
     this.clearMessage();
-    
-    console.log('Generando firma con payload:', this.signatureData.payload);
-    console.log('Token de autorización:', this.authToken);
-    
-    const payload = JSON.parse(this.signatureData.payload || '{}');
-    
-    this.http.post<SignatureResponse>('http://localhost:8080/api/v1/autorizador/sign-data', {
-      payload: payload
-    }, {
-      headers: {
-        'Authorization': `Bearer ${this.authToken}`
+
+    try {
+      if (!this.isLoggedIn || !this.authToken) {
+        throw new Error('Debes iniciar sesión para firmar.');
       }
-    })
-    .subscribe({
-      next: (response) => {
-        console.log('Respuesta de firma:', response);
-        this.signatureData.firma = response.firma;
-        this.signatureData.timestamp = response.timestamp;
-        this.showMessage('Firma generada exitosamente', 'success');
-        this.signatureLoading = false;
-        this.cdr.detectChanges();
-      },
-      error: (error) => {
-        console.error('Error generando firma:', error);
-        this.showMessage('Error generando firma: ' + (error.error?.mensaje || error.message), 'error');
-        this.signatureLoading = false;
-        this.cdr.detectChanges();
+
+      if (!this.signatureData.payload && this.currentUser?.id != null) {
+        const built = this.buildPayloadFromForm(this.currentUser.id);
+        this.signatureData.payload = JSON.stringify(built, null, 2);
       }
-    });
+
+      const payload = JSON.parse(this.signatureData.payload || '{}');
+
+      this.http.post<SignatureResponse>(
+        'http://localhost:8080/api/v1/autorizador/sign-data',
+        { payload },
+        { headers: { Authorization: `Bearer ${this.authToken}` } }
+      ).subscribe({
+        next: (res) => {
+          this.signatureData.firma = res.firma;
+          this.signatureData.timestamp = res.timestamp;
+          this.signatureData.payload = JSON.stringify(res.payload, null, 2);
+          this.showMessage('✅ Firma generada exitosamente', 'success');
+          this.signatureLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.showMessage('Error generando firma: ' + (err.error?.mensaje || err.message), 'error');
+          this.signatureLoading = false;
+          this.cdr.detectChanges();
+        }
+      });
+    } catch (e: any) {
+      this.showMessage('Payload inválido: ' + (e?.message || e), 'error');
+      this.signatureLoading = false;
+    }
   }
 
   validateSignature() {
     this.validationLoading = true;
     this.clearMessage();
-    
-    const payload = JSON.parse(this.validationData.payload || '{}');
-    
-    this.http.post<ValidationResponse>('http://localhost:8080/api/v1/autorizador/validate-signature', {
-      payload: payload,
-      firma: this.validationData.firma
-    })
-    .subscribe({
-      next: (response) => {
-        this.validationData.resultado = response;
-        this.showMessage(
-          response.firma_valida ? 'Firma válida' : 'Firma inválida', 
-          response.firma_valida ? 'success' : 'error'
-        );
-        this.validationLoading = false;
-      },
-      error: (error) => {
-        this.showMessage('Error validando firma: ' + (error.error?.mensaje || error.message), 'error');
-        this.validationLoading = false;
+
+    try {
+      if (!this.isLoggedIn || !this.authToken) {
+        throw new Error('Debes iniciar sesión para validar firmas.');
       }
-    });
+
+      const payload = JSON.parse(this.validationData.payload || '{}');
+
+      this.http.post<ValidationResponse>(
+        'http://localhost:8080/api/v1/autorizador/validate-signature',
+        { payload, firma: this.validationData.firma },
+        { headers: { Authorization: `Bearer ${this.authToken}` } }
+      ).subscribe({
+        next: (res) => {
+          this.validationData.resultado = res;
+          this.showMessage(res.firma_valida ? '✅ Firma válida' : '❌ Firma inválida',
+                           res.firma_valida ? 'success' : 'error');
+          this.validationData.payload = JSON.stringify(res.payload ?? payload, null, 2);
+          this.validationLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.showMessage('Error validando firma: ' + (err.error?.mensaje || err.message), 'error');
+          this.validationLoading = false;
+          this.cdr.detectChanges();
+        }
+      });
+    } catch (e: any) {
+      this.showMessage('Payload inválido: ' + (e?.message || e), 'error');
+      this.validationLoading = false;
+    }
   }
 
   logout() {

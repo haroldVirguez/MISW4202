@@ -23,6 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: m-logistica-inventario
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
+    #entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"] # TODO - Daniel S
     command: python entrypoints/entrypoint_logistica.py
     # Puerto interno - Solo accesible via API Gateway
     expose:
@@ -46,6 +47,7 @@ services:
       dockerfile: Dockerfile
     container_name: m-monitor
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
+    #entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"] # TODO - Daniel S
     command: python entrypoints/entrypoint_monitor.py
     # Puerto interno - Solo accesible via API Gateway
     expose:
@@ -69,6 +71,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: m-autorizador
+    #entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"] # TODO - Daniel S
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"]
     command: python entrypoints/entrypoint_autorizador.py
     expose:
