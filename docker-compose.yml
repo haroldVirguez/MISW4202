@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: m-logistica-inventario
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"] # TODO - Daniel S
-    command: python entrypoints/entrypoint_logistica.py
+    command: ["sh", "-lc", "mkdir -p /var/log/logistica && touch /var/log/logistica/logistica.log && python entrypoints/entrypoint_logistica.py 2>&1 | tee -a /var/log/logistica/logistica.log"]
     # Puerto interno - Solo accesible via API Gateway
     expose:
       - "5002"
@@ -33,6 +33,7 @@ services:
     volumes:
       - sqlite_data:/data
       - .:/app
+      - ./logs/logistica:/var/log/logistica
     depends_on:
       - redis
     networks:
@@ -70,7 +71,7 @@ services:
       dockerfile: Dockerfile
     container_name: m-autorizador
     entrypoint: ["/usr/local/bin/docker-entrypoint-security.sh"] # TODO - Daniel S
-    command: python entrypoints/entrypoint_autorizador.py
+    command: ["sh", "-lc", "python entrypoints/entrypoint_autorizador.py 2>&1 | tee -a /var/log/autorizador/autorizador.log"]
     expose:
       - "5003"
     env_file: .env
@@ -79,6 +80,7 @@ services:
     volumes:
       - sqlite_data:/data
       - .:/app
+      - ./logs/autorizador:/var/log/autorizador
     depends_on:
       - redis
     networks:

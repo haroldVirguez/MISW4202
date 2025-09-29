@@ -2,3 +2,5 @@ venv/
 .venv/
 __pycache__/
 worker.log
+autorizador.log
+logistica.log
